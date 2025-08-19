@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="RNAAlignRefactored"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="RNAAlignRefactored">
+				<Option output="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/RNAAlignRefactored" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/usr/include/c++/11"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/11"/>
+					<Add directory="/usr/include/c++/11/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/11/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 RNAAlignRefactored"/>
+					<CompileFile command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="RNAAlignRefactored/fast">
+				<Option output="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/RNAAlignRefactored" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/usr/include/c++/11"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/11"/>
+					<Add directory="/usr/include/c++/11/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/11/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 RNAAlignRefactored/fast"/>
+					<CompileFile command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/gmake -j20 -f &quot;/mnt/c/Users/123/Desktop/RNAalignment/src/cmake-build-debug-wsl/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/Genome.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/Genome.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/GenomeIndex.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/GenomeIndex.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/GenomeIndexPrefix.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/GenomeIndexPrefix.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/SuffixArray.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/SuffixArray.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/SuffixAutomatonKMerBuilder.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/SuffixAutomatonKMerBuilder.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/WindowScanningKMerBuilder.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/genome/WindowScanningKMerBuilder.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/main.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/ReadAligner.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/ReadAligner.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/SeedMapping.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/SeedMapping.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/StitchingManagement.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/readAlign/StitchingManagement.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/utils/PackedArray.cpp">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/utils/PackedArray.h">
+			<Option target="RNAAlignRefactored"/>
+		</Unit>
+		<Unit filename="/mnt/c/Users/123/Desktop/RNAalignment/src/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
