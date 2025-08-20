@@ -5,4 +5,6 @@ We have only implemented bulk RNA-seq alignment at this moment. We will implemen
 ToDo list now.
 
 1. Mulththread
-2. Two-pass and Pair-End
+2. Two-pass
+3. Pair-ends
+4. Chimeric
