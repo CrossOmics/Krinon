@@ -16,6 +16,12 @@ namespace rna {
         int flankSize{4};
         int minAlignLength{10};
         int maxRep{10000};
+        int maxMismatch{10};
+        int multimapScoreRange{1};
+        int transcriptStoredMax{100}; // maximum number of transcripts to store
+        int maxExons{20}; // max exons number in a transcript
+        double outFilterScoreMinOverLRead{0.66};
+        double outFilterMatchMinOverLRead{0.66};
     };
     class StitchingManagement {
     public:
@@ -41,16 +47,23 @@ namespace rna {
         void createWindows(const std::vector<Align>& alignments);
         void assignAlignmentsToWindows(const std::vector<Align>& alignments);
         void generateTranscripts();
-        void createChrWindows(const std::vector<Align>& alignments);
-        void assignAlignmentsToChrWindows(const std::vector<Align>& alignments);
-        inline void assignSingleAlignment(Window& win, const PositiveStrandAlign& a);
-        std::pair<int64_t,int64_t> extendAlign(WindowAlign& a,bool dir);
+
+        inline void assignSingleAlignment(Window& win, const PositiveStrandAlign& a) const;
+
 
         void identifyAnchors(std::vector<Align>& alignments);
 
 
         //DP stitching
         void stitchWindowAligns(Window &window);
+
+        void stitchWindowsAlignNew(Window &window);
+
+        StitchingRecord stitchingBetweenWindowAligns(const WindowAlign& a1,const WindowAlign& a2,int windowDir);
+
+        ExtensionRecord extendWindowAlign(const WindowAlign& a, int windowDir,int extendDir);
+
+        void refreshWinBinMap();
 
         void finalizeTranscript(Transcript &t, const int chrId);
 
@@ -71,8 +84,21 @@ namespace rna {
         std::vector<Window> windows_;
         std::vector<Transcript> transcripts_;
         std::vector<SJDBOutput> sjdb;
-        int32_t* winBinMap_;
-        int32_t* chrWinMap_;
+        int64_t outFilterScoreMin_;
+        int outFilterMatchMin_;
+
+        WindowAlign* allWindowAligns_; // window alignments stored for all windows.
+        int32_t* winBinMap_[2];
+
+        StitchingRecord* nowStitchingRecord_; // stitching records for current window
+        ExtensionRecord* nowExtensionRecord_[2]; // extension records for current window, forward & backward
+        RawTranscript* nowRawTranscript_; // raw transcripts for current window, used to store stitching records
+
+        int64_t maxTranscriptScore_ ;
+
+        Transcript* goodTranscripts_;
+        int numGoodTranscripts_ = 0;
+
 
         const GenomeIndexPrefix &genomeIndex_;
         ReadPtr read_;

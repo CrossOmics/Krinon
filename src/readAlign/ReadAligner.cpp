@@ -75,26 +75,37 @@ namespace rna {
 
             auto startTime = std::chrono::high_resolution_clock::now();
             seedMapping->processRead(read);
+
             auto alignEndTime = std::chrono::high_resolution_clock::now();
             stitchingManagement->processAlignments(seedMapping->aligns,read);
-            auto stitchEndTime = std::chrono::high_resolution_clock::now();
+
+
             sjdbCandidates.insert(sjdbCandidates.end(),
                                   stitchingManagement->getSJDB().begin(),
                                   stitchingManagement->getSJDB().end());
 
             if(!partialOutput || i < 10000){
-                alignStatusFile << read->name << '\t' << "AlignTime:\t"
-                                << std::chrono::duration_cast<std::chrono::microseconds>(alignEndTime - startTime).count() << " StitchTime:\t"
-                                << std::chrono::duration_cast<std::chrono::microseconds>(stitchEndTime - alignEndTime).count() << '\n';
+
 
                 outFile << SAMEntry(*stitchingManagement->getBestTranscript(), *read) << '\n';
             }
 
+            stitchingManagement->clear();
+            auto stitchEndTime = std::chrono::high_resolution_clock::now();
+
+            if(!partialOutput || i < 10000){
+                alignStatusFile << read->name << '\t' << "AlignTime:\t"
+                                << std::chrono::duration_cast<std::chrono::microseconds>(alignEndTime - startTime).count() << " StitchTime:\t"
+                                << std::chrono::duration_cast<std::chrono::microseconds>(stitchEndTime - alignEndTime).count() << '\n';
+            }
+
+
+            seedMapping->clear();
 
             outFile.flush();
             alignStatusFile.flush();
-            seedMapping->clear();
-            stitchingManagement->clear();
+
+
             totalAlignTime += std::chrono::duration_cast<std::chrono::microseconds>(alignEndTime - startTime).count();
             totalStitchTime += std::chrono::duration_cast<std::chrono::microseconds>(stitchEndTime - alignEndTime).count();
             if ((!partialOutput) ||  i % 1000000 == 0){

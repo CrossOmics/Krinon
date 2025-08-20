@@ -56,11 +56,8 @@ namespace rna {
         buildKMerIndex();
         fillKMerIndex();
         std::cout << "finished building kMerIndex\n";
-        //extendedKMerNum = 0;
-        //extendedKMerIndex_.resize(MER_NUM, -1);
-        //buildExtendedKMerMap();
+        appearance_flag.clear();
         buildAlternativeKMerMap();
-        //std::cout << "extendKMerNum" << extendedKMerMap_.size() << std::endl;
         std::cout << "finished building index\n";
     }
 
@@ -121,8 +118,8 @@ namespace rna {
                     setFlag(nowWindowHash[j], j);
                 }
             }
-
         }
+
     }
 
     void GenomeIndexPrefix::buildKMerIndex() {
@@ -669,8 +666,59 @@ namespace rna {
             size_t num = rBound - lBound;
             const int64_t extendIndexHashBase = hash * config.extendAlternativeByte/4;
             int64_t remainingLength = pattern.length() - MER_LENGTH;
-            //todo
-            if (remainingLength < 16) return getMatchStatsLCP(pattern, lBound, rBound, l);
+            //todo this may  better
+            if (remainingLength < 16) {
+                uint32_t h = encodeKMer(pattern.substr(l, remainingLength), remainingLength);
+                uint32_t hLeft = h <<  ((16 - remainingLength)*2);
+                uint32_t hRight = (h+1) << ((16 - remainingLength)*2);
+                size_t left = 0, right = config.extendAlternativeByte/4;
+                size_t mid;
+                while (right - left > 1){
+                    mid = (left + right) / 2;
+                    if (extendIndexHash[extendIndexHashBase + mid] < hLeft) left = mid;
+                    else if (extendIndexHash[extendIndexHashBase + mid] > hRight) right = mid;
+                    else {
+                        // true left bound in [left,mid] ,true right bound in [mid,right]
+                        size_t boundLeft = mid;
+                        while (boundLeft - left > 1){
+                            size_t midLeft = (left + boundLeft) / 2;
+                            if (extendIndexHash[extendIndexHashBase + midLeft] < hLeft) left = midLeft;
+                            else if (extendIndexHash[extendIndexHashBase + midLeft] > hLeft) boundLeft = midLeft;
+                            else {
+                                // exact match
+                                left =  midLeft;
+                                while (left > 0 && extendIndexHash[extendIndexHashBase + left] == hLeft)
+                                    --left;
+                                break;
+                            }
+                        }
+                        size_t boundRight = mid;
+                        while (right - boundRight > 1){
+                            size_t midRight = (boundRight + right) / 2;
+                            if (extendIndexHash[extendIndexHashBase + midRight] < hRight) boundRight = midRight;
+                            else if (extendIndexHash[extendIndexHashBase + midRight] > hRight) right = midRight;
+                            else {
+                                // exact match
+                                right = midRight;
+                                while (right < config.extendAlternativeByte/4 &&
+                                       extendIndexHash[extendIndexHashBase + right] == hRight)
+                                    ++right;
+                                break;
+                            }
+                        }
+                        // now we get the range
+                        break;
+                    }
+                }
+
+                // reaching here means that [hLeft, hRight] is in [extendIndexHash[extendIndexHashBase + left], extendIndexHash[extendIndexHashBase + right]]
+
+                rBound = lBound + right * num * 4 / config.extendAlternativeByte;
+                if (right != config.extendAlternativeByte/4) ++rBound;
+                lBound += left * num * 4 / config.extendAlternativeByte;
+
+                return getMatchStatsLCP(pattern, lBound, rBound, l);
+            }
             if (num > 16) {
                 uint32_t h = encodeKMer(pattern.substr(l, 16), 16);
                 size_t left = 0, right = config.extendAlternativeByte/4;

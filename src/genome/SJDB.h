@@ -1,0 +1,11 @@
+#ifndef RNAALIGNREFACTORED_SJDB_H
+#define RNAALIGNREFACTORED_SJDB_H
+
+class GTF{
+public:
+
+};
+
+
+
+#endif //RNAALIGNREFACTORED_SJDB_H

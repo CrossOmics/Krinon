@@ -9,6 +9,7 @@ add_executable(RNAAlignRefactored   main.cpp
                                     genome/GenomeIndexPrefix.cpp
                                     genome/SuffixArray.cpp
                                     genome/SuffixAutomatonKMerBuilder.cpp
+                                    genome/SJDB.cpp
                                     readAlign/ReadAligner.cpp
                                     readAlign/SeedMapping.cpp
                                     readAlign/StitchingManagement.cpp

@@ -21,9 +21,9 @@ int main(int argc, char* argv[]){
     std::string genomeFile = "test.fa";
     std::string readFile = "test.fastq";
     std::string mode = "both";
-    std::string outputMode = "test"; // "all" or "test" in test mode, only output the result and time of first 10000 reads
+    std::string outputMode = "all"; // "all" or "test" in test mode, only output the result and time of first 10000 reads
     //mode = "both";
-    //mode = "readAlign";
+    mode = "readAlign";
     if (argc == 3){
         genomeFile = argv[1];
         readFile = argv[2];
@@ -42,7 +42,7 @@ int main(int argc, char* argv[]){
 
         //Must modify the parameters below !!!
         genomeIndexPrefix.setConfig(rna::GenomeIndexPrefixConfig{
-                .kMerSize = 14, // for large genome, suggest using 14-mer
+                .kMerSize = 10, // for large genome, suggest using 14-mer
                 .extendLength = 2, // for large genome, suggest using 4
                 .extendIndexSize = 17, // (1 << (2 * extendLength)) + 1 , suggest using 257
                 .minExtendRep = 1000000, // minimum number of repetitions for extension ,
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]){
 
         //Must modify the parameters below !!!
         genomeIndexPrefix.setConfig(rna::GenomeIndexPrefixConfig{
-                .kMerSize = 14, // for large genome, suggest using 14-mer
+                .kMerSize = 10, // for large genome, suggest using 14-mer
                 .extendLength = 2, // for large genome, suggest using 4
                 .extendIndexSize = 17, // (1 << (2 * extendLength)) + 1 , suggest using 257
                 .minExtendRep = 1000000, // minimum number of repetitions for extension ,
