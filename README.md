@@ -5,6 +5,6 @@ We have only implemented bulk RNA-seq alignment at this moment. We will implemen
 ToDo list now.
 
 1. OutputManager
-2. Two-pass
+2. SJDB and Two-pass
 3. Pair-ends
 4. Chimeric
