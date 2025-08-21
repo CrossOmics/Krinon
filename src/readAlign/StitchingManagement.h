@@ -16,6 +16,7 @@ namespace rna {
         int flankSize{4};
         int minAlignLength{10};
         int maxRep{10000};
+        int outFilterMultimapMax{10};
         int maxMismatch{10};
         int multimapScoreRange{1};
         int transcriptStoredMax{100}; // maximum number of transcripts to store
@@ -31,8 +32,15 @@ namespace rna {
         TranscriptPtr getBestTranscript() const;
         std::vector<SJDBOutput> getSJDB() const;
         void clear();
+        enum StitchingStatus {
+            SUCCESS,
+            FAILED_NO_ALIGNMENTS,
+            FAILED_NO_GOOD_TRANSCRIPT,
+            FAILED_TOO_MANY_TRANSCRIPTS,
+        } status = SUCCESS;
 
-
+        Transcript* goodTranscripts_;
+        int numGoodTranscripts_ = 0;
     private:
         struct PositiveStrandAlign{
 
@@ -59,9 +67,11 @@ namespace rna {
 
         void stitchWindowsAlignNew(Window &window);
 
-        StitchingRecord stitchingBetweenWindowAligns(const WindowAlign& a1,const WindowAlign& a2,int windowDir);
+        void generateTranscriptsNew();
 
-        ExtensionRecord extendWindowAlign(const WindowAlign& a, int windowDir,int extendDir);
+        void stitchingBetweenWindowAligns(const WindowAlign& a1,const WindowAlign& a2,int windowDir,StitchingRecord& record);
+
+        void extendWindowAlign(const WindowAlign& a, int windowDir,int extendDir,ExtensionRecord& res);
 
         void refreshWinBinMap();
 
@@ -93,11 +103,12 @@ namespace rna {
         StitchingRecord* nowStitchingRecord_; // stitching records for current window
         ExtensionRecord* nowExtensionRecord_[2]; // extension records for current window, forward & backward
         RawTranscript* nowRawTranscript_; // raw transcripts for current window, used to store stitching records
+        ExtensionRecord::singleExtensionRecord* allSingleExtensionRecord_;
 
         int64_t maxTranscriptScore_ ;
 
-        Transcript* goodTranscripts_;
-        int numGoodTranscripts_ = 0;
+
+
 
 
         const GenomeIndexPrefix &genomeIndex_;
@@ -119,8 +130,18 @@ namespace rna {
         static constexpr int SCORE_GAP_ATAC = -8; // AT/AC and GT/AT junction penalty
         static constexpr int SCORE_GAP_NON_CANONICAL = -8;
         static constexpr int MAX_SJ_REPEAT_SEARCH = 255;
-        static constexpr uint32_t MIN_INTRON_LENGTH = 20;  // 最小内含子长度
-        static constexpr uint32_t MAX_INTRON_LENGTH = 100000;  // 最大内含子长度
+        static constexpr uint32_t MIN_INTRON_LENGTH = 20;
+        static constexpr uint32_t MAX_INTRON_LENGTH = 2147483647;
+
+        static constexpr inline int32_t charToIndex(char c) {
+            switch(c) {
+                case 'A': return 0;
+                case 'C': return 1;
+                case 'G': return 2;
+                case 'T': return 3;
+                default: return 4;
+            }
+        }
 
     };
 }

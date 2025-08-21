@@ -13,6 +13,7 @@ add_executable(RNAAlignRefactored   main.cpp
                                     readAlign/ReadAligner.cpp
                                     readAlign/SeedMapping.cpp
                                     readAlign/StitchingManagement.cpp
+                                    readAlign/ReadAlignMultiThread.cpp
                                     genome/WindowScanningKMerBuilder.cpp
                                     utils/PackedArray.cpp
                                     )

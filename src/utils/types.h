@@ -104,7 +104,6 @@ namespace rna {
             DELETION,
             INSERTION,
             SPLICE_JUNCTION,
-            END_EXTENSION,
         } type{CANNOT_STITCH};
         SpliceJunction stitchingType{0, 0, false};
     };
@@ -185,9 +184,12 @@ namespace rna {
                     } else if (sj[i].type == -1) {
                         cigar += std::to_string(sj[i].length) + "D"; // deletion
                     } else if (sj[i].type == -2) {
-                        cigar += std::to_string(-sj[i].length) + "I"; // insertion
+                        cigar += std::to_string(sj[i].length) + "I"; // insertion
                     }
                 }
+            }
+            if (exons.back().readStart + exons.back().length < readStart + readName.size()) {
+                cigar += std::to_string(readStart + readName.size() - (exons.back().readStart + exons.back().length)) + "S"; // soft clipping at the end
             }
 
             return cigar;
@@ -216,9 +218,9 @@ namespace rna {
             CIGAR = t.getCIGAR();
             RNEXT = "*";
             PNEXT = 0;
-            TLEN = 0; // not used
+            TLEN = 0; // not used in none paired-end reads
             seq = read.sequence[0];
-            qual = "*"; // quality not available in this context
+            qual = read.quality;
         }
 
         friend std::ostream &operator<<(std::ostream &os, const SAMEntry &entry) {
@@ -240,7 +242,6 @@ namespace rna {
 
 
     using ReadPtr = std::shared_ptr<Read>;
-    using WindowPtr = std::shared_ptr<Window>;
     using TranscriptPtr = std::shared_ptr<Transcript>;
 
 }

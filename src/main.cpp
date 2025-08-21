@@ -1,5 +1,6 @@
 #include "genome/GenomeIndex.h"
 #include "readAlign/ReadAligner.h"
+#include "readAlign/ReadAlignMultiThread.h"
 
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
@@ -56,9 +57,11 @@ int main(int argc, char* argv[]){
     if(mode == "both" || mode == "readAlign"){
         rna::GenomeIndexPrefix genomeIndexPrefix;
         genomeIndexPrefix.load("test");
-        rna::ReadAligner aligner(genomeIndexPrefix);
+        /*rna::ReadAligner aligner(genomeIndexPrefix);
         if (outputMode == "test") aligner.partialOutput = true;
-        aligner.processReadFile(readFile); // the read file in fastq format
+        aligner.processReadFile(readFile); // the read file in fastq format*/
+        rna::ReadAlignMultiThread readAlignMultiThread;
+        readAlignMultiThread.processReadFile(readFile,4,genomeIndexPrefix,outputMode == "test");
     }
     if (mode == "test"){
         //without write & load
@@ -77,9 +80,8 @@ int main(int argc, char* argv[]){
                 .twoDirections = true
         });
         genomeIndexPrefix.build();
-        rna::ReadAligner aligner(genomeIndexPrefix);
-        if (outputMode == "test") aligner.partialOutput = true;
-        aligner.processReadFile(readFile); // the read file in fastq format
+        rna::ReadAlignMultiThread readAlignMultiThread;
+        readAlignMultiThread.processReadFile(readFile,4,genomeIndexPrefix,outputMode == "test");
     }
 
 

@@ -14,14 +14,14 @@ namespace rna {
     class SeedMapping {
     private:
 
-        GenomeIndexPrefix& genomeIndexPrefix;
+        const GenomeIndexPrefix& genomeIndexPrefix;
         SeedMappingConfig config;
         ReadPtr read;
         std::string readSeq[2];
         std::vector<Split> splits;
     public:
         std::vector<Align> aligns;
-        SeedMapping(GenomeIndexPrefix& gInPre, const SeedMappingConfig& cfg) : genomeIndexPrefix(gInPre), config(cfg) {}
+        SeedMapping(const GenomeIndexPrefix& gInPre, const SeedMappingConfig& cfg) : genomeIndexPrefix(gInPre), config(cfg) {}
         void alignRead();
         void splitRead();
         void clear() {
