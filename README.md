@@ -1,10 +1,10 @@
-# This is an RNA aligner that produces almost the same output as STAR. You can use our aligner in a way very similar to STAR.
+# This is an RNA aligner that produces almost the same output as STAR.
 
-We have only implemented bulk RNA-seq alignment at this moment. We will implement an scRNA-seq aligner next. 
+The package is still under development. So far, we only support one-pass alignment for bulk-RNA reads.
 
-ToDo list now.
+Some works are in our todo list now.
 
-1. OutputManager
-2. SJDB and Two-pass
-3. Pair-ends
-4. Chimeric
+1. Two-pass
+2. Chimeric
+3. Single-cell read alignment.
+4. HiFi long-read
