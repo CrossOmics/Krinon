@@ -1,4 +1,4 @@
-# This is an RNA aligner that produces almost the same output as STAR.
+# Krinon is an RNA aligner that produces almost the same output as STAR.
 
 The package is still under development. So far, we only support one-pass alignment for bulk-RNA reads.
 
