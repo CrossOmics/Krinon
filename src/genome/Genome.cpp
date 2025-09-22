@@ -26,8 +26,8 @@ namespace rna{
                 if (!currentChr.empty()) {
                     GenomePos currentPos = static_cast<GenomePos>(currentSeq.tellp());
                     GenomePos chrLen = currentPos - currentStart;
-                    // 计算需要补充的长度，使总长为2^INDEX_SHIFT的整数倍
-                    GenomePos paddingLen = ((chrLen + (1 << INDEX_SHIFT)) & ~((1 << INDEX_SHIFT) - 1)) - chrLen;
+
+                    GenomePos paddingLen = ((chrLen + (1 << binSize)) & ~((1 << binSize) - 1)) - chrLen;
 
                     for (GenomePos i = 0; i < paddingLen; ++i) {
                         currentSeq << SPACING_CHAR;
@@ -63,7 +63,7 @@ namespace rna{
 
             GenomePos currentPos = static_cast<GenomePos>(currentSeq.tellp());
             GenomePos chrLen = currentPos - currentStart;
-            GenomePos paddingLen = ((chrLen + (1 << INDEX_SHIFT) - 1) & ~((1 << INDEX_SHIFT) - 1)) - chrLen;
+            GenomePos paddingLen = ((chrLen + (1 << binSize) - 1) & ~((1 << binSize) - 1)) - chrLen;
             for (GenomePos i = 0; i < paddingLen; ++i) {
                 currentSeq << SPACING_CHAR;
             }
@@ -75,6 +75,7 @@ namespace rna{
         }
         file.close();
         sequence_ = currentSeq.str();
+        originalGenomeLength = sequence_.length();
         buildPosToChromosomeMap();
         if (sequence_.empty()) {
             throw RNAException(ExceptionType::INVALID_INPUT,
@@ -90,17 +91,17 @@ namespace rna{
     }
     void Genome::buildPosToChromosomeMap() {
         for(int64_t i = 0; i < chromosomes_.size(); ++i) {
-            chromosomeMap_[chromosomes_[i].start] = i;
+            chromosomeStartMap_[chromosomes_[i].start] = i;
         }
     }
     // return 0-based position in chromosome
     std::pair<std::string,int64_t> Genome::getPosChromosome(int64_t pos) const {
-        Chromosome c = chromosomes_[(--chromosomeMap_.upper_bound(pos))->second ];
+        Chromosome c = chromosomes_[(--chromosomeStartMap_.upper_bound(pos))->second ];
         return {c.name, pos - c.start};
     }
 
     int64_t Genome::getPosChrIndex(int64_t pos) const {
-        return (--chromosomeMap_.upper_bound(pos))->second;
+        return (--chromosomeStartMap_.upper_bound(pos))->second;
     }
 
     void Genome::writeChrInfo(const std::string& dirOut) const {

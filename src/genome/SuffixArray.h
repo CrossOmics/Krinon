@@ -17,20 +17,20 @@
 namespace rna {
 
 
-    class SuffixArrayNew {
+    class SuffixArray {
         // a less memory consuming version of SuffixArray
     public:
-        SuffixArrayNew() = default;
+        SuffixArray() = default;
 
-        void build(const std::string &seq, bool skipInvalidSuffixes = true);
+        void build(const std::string &seq, bool skipInvalidSuffixes = true, size_t reservedLength = 0);
+
+        int64_t findInsertPosition(const std::string_view &pattern,const std::string_view& genomeSeq) const;
 
         inline GenomePos operator[](size_t index) const { return sa_.get(index); }
 
         size_t length() const { return sa_.length(); }
 
         PackedArray sa_; //compressed suffix array
-        PackedArray rk_; //compressed rank array
-        PackedArray lcp_; //compressed lcp array
         int64_t fullLength_; // full length of the original text, including invalid characters
     private:
         static constexpr int32_t charToIndex(char c) {
@@ -74,7 +74,7 @@ namespace rna {
 
         void computeSuffixArray(size_t *pat, size_t *sa, size_t patLen, size_t saLen);
 
-        size_t *suffixArray(const std::vector<uint8_t> &pat);
+        size_t *suffixArray(const std::vector<uint8_t> &pat,size_t reservedLength);
 
 
     };

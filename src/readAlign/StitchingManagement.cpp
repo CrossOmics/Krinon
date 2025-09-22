@@ -12,25 +12,21 @@
 
 
 namespace rna {
-    inline int64_t log2(int64_t n) {
-        if (n <= 0) return -1; // invalid input
-        int64_t ans = 0;
-        while (n > 0) {
-            n >>= 1;
-            ans++;
-        }
-        return ans - 1; // log2(n) = ans - 1
-    }
 
-    StitchingManagement::StitchingManagement(const stitchingConfig &config,
-                                             const GenomeIndexPrefix &genomeIndex)
+
+    StitchingManagement::StitchingManagement(const StitchingConfig &config,
+                                             const GenomeIndex &genomeIndex)
             : config_(config), genomeIndex_(genomeIndex) {
-        auto winBinMapRaw = new int32_t[(genomeIndex_.suffixArray.fullLength_ >> (config.winBinSizeLog - 1)) + 2];
+        auto winBinMapRaw = new int32_t[(genomeIndex_.suffixArray.fullLength_ >> (config.winBinSizeLog - 1)) +
+                                        2];
         for (size_t i = 0; i < (genomeIndex_.suffixArray.fullLength_ >> (config.winBinSizeLog - 1)) + 2; ++i) {
             winBinMapRaw[i] = -1; // initialize all bins to -1
         }
         winBinMap_[0] = winBinMapRaw; //dirction 0
         winBinMap_[1] = winBinMapRaw + (genomeIndex_.suffixArray.fullLength_ >> config.winBinSizeLog) + 1;
+
+
+        // data structures for stitching
         allWindowAligns_ = new WindowAlign[config_.maxWindows * config_.maxSeedPerWindows];
         nowStitchingRecord_ = new StitchingRecord[config_.maxSeedPerWindows * (config_.maxSeedPerWindows - 1) / 2];
         nowExtensionRecord_[0] = new ExtensionRecord[config_.maxSeedPerWindows];
@@ -38,14 +34,20 @@ namespace rna {
         nowRawTranscript_ = new RawTranscript[config_.maxSeedPerWindows *
                                               config_.maxSeedPerWindows]; // actually we only need half of this, but we allocate the full size for simplicity
         goodTranscripts_ = new Transcript[config_.transcriptStoredMax];
-        allSingleExtensionRecord_ = new ExtensionRecord::singleExtensionRecord[config_.maxSeedPerWindows * 2 * (1 + config_.maxMismatch)];
+        allSingleExtensionRecord_ = new ExtensionRecord::singleExtensionRecord[config_.maxSeedPerWindows * 2 *
+                                                                               (1 + config_.maxMismatch)];
         int singleExtensionRecordPtr = 0;
-        for (int i = 0; i < config_.maxSeedPerWindows;++i){
-            nowExtensionRecord_[0][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_+singleExtensionRecordPtr;
+        for (int i = 0; i < config_.maxSeedPerWindows; ++i) {
+            nowExtensionRecord_[0][i].maxExtensionLengthWithMismatch =
+                    allSingleExtensionRecord_ + singleExtensionRecordPtr;
             singleExtensionRecordPtr += (1 + config_.maxMismatch);
-            nowExtensionRecord_[1][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_+singleExtensionRecordPtr;
+            nowExtensionRecord_[1][i].maxExtensionLengthWithMismatch =
+                    allSingleExtensionRecord_ + singleExtensionRecordPtr;
             singleExtensionRecordPtr += (1 + config_.maxMismatch);
         }
+
+        //initialize the outFilter parameters
+
         outFilterScoreMin_ = 0;
         outFilterMatchMin_ = 0;
     }
@@ -61,10 +63,11 @@ namespace rna {
         delete[] allSingleExtensionRecord_;
     }
 
-    void StitchingManagement::processAlignments(std::vector<Align> &alignments, ReadPtr read) {
+    void StitchingManagement::processAlignments(
+            Align *alignments, int alignNum, ReadPtr read) {
 
         status = SUCCESS;
-        if (alignments.empty()) {
+        if (alignNum == 0) {
             status = FAILED_NO_ALIGNMENTS;
             return;
         }
@@ -72,6 +75,7 @@ namespace rna {
 
         bestTranscript_ = std::make_shared<Transcript>();
         read_ = std::move(read);
+        readLength = read_->length;
         windows_.reserve(config_.maxWindows);
         transcripts_.reserve(100);
         maxTranscriptScore_ = 0;
@@ -79,11 +83,11 @@ namespace rna {
         outFilterMatchMin_ = int(double(read_->length) * config_.outFilterMatchMinOverLRead);
         outFilterScoreMin_ = int64_t(double(read_->length) * config_.outFilterScoreMinOverLRead);
 
-        identifyAnchors(alignments);
+        identifyAnchors(alignments, alignNum);
 
-        createWindows(alignments);
+        createWindows(alignments, alignNum);
 
-        assignAlignmentsToWindows(alignments);
+        assignAlignmentsToWindows(alignments, alignNum);
 
         //generateTranscripts();
 
@@ -96,14 +100,14 @@ namespace rna {
 
         int trueNumGoodTranscripts = numGoodTranscripts_;
 
-        for (int i = 0; i<numGoodTranscripts_; ++i){
-            if (goodTranscripts_[i].score < maxTranscriptScore_ - config_.multimapScoreRange){
+        for (int i = 0; i < numGoodTranscripts_; ++i) {
+            if (goodTranscripts_[i].score < maxTranscriptScore_ - config_.multimapScoreRange) {
                 trueNumGoodTranscripts = i;
                 break;
             }
         }
 
-        if (trueNumGoodTranscripts > config_.outFilterMultimapMax){
+        if (trueNumGoodTranscripts > config_.outFilterMultimapMax) {
             status = FAILED_TOO_MANY_TRANSCRIPTS;
             return;
         }
@@ -134,9 +138,10 @@ namespace rna {
     }
 
 
-    void StitchingManagement::identifyAnchors(std::vector<Align> &alignments) {
-        for (auto &alignment: alignments) {
+    void StitchingManagement::identifyAnchors(Align *alignments, int alignNum) {
+        for (int i = 0; i < alignNum; ++i) {
             // Check whether it is an anchor
+            Align &alignment = alignments[i];
             if (alignment.rep <= config_.maxAnchorRep) {
                 alignment.isAnchor = true;
                 totalAnchors_++;
@@ -153,101 +158,164 @@ namespace rna {
             // reverse strand alignment
             int64_t genomeStart = genomeIndex_.genomeLength * 2 - location - align.length;
             int64_t readStart = read_->length - align.readStart - align.length;
-            return {genomeStart, readStart, align.length, 1 - align.direction, align.isAnchor};
+            return {genomeStart, readStart, align.length, 1 - align.direction, align.isAnchor,align.iFragment};
         } else {
             // positive strand alignment
-            return {location, align.readStart, align.length, align.direction, align.isAnchor};
+            return {location, align.readStart, align.length, align.direction, align.isAnchor,align.iFragment};
         }
     }
 
-    void StitchingManagement::createWindows(const std::vector<Align> &alignments) {
-        windows_.reserve(config_.maxWindows);
-        for (const auto &align: alignments) {
+    std::pair<bool, StitchingManagement::sjSplitRecord>
+    StitchingManagement::trySplitSJ(const Align &align, int64_t location) {
+        if (genomeIndex_.gtf == nullptr) return {false, {}};
+        // try to split the alignment
+        const int64_t genomeLength = genomeIndex_.genome->originalGenomeLength;
+        const int64_t sjSeqLength = genomeIndex_.gtf->sjdbSeqLengthSingleStrand_;
+        location -= genomeLength;
+        sjSplitRecord ans{};
+        if (location < sjSeqLength) {
+            // positive strand sj
+            ans.direction = 0;
+        } else {
+            // negative strand sj
+            ans.direction = 1;
+            location = 2 * sjSeqLength - location - align.length;
+        }
+
+
+        int64_t startInSj = location % genomeIndex_.gtf->config_.sjdbLength;
+        if (startInSj < genomeIndex_.gtf->config_.sjdbOverhang &&
+            startInSj + align.length > genomeIndex_.gtf->config_.sjdbOverhang) {
+            // can be split
+            ans.isj = location / genomeIndex_.gtf->config_.sjdbLength;
+            ans.donorStart = genomeIndex_.genome->sjDonorStart_[ans.isj] + startInSj;
+            ans.donorLength = genomeIndex_.gtf->config_.sjdbOverhang - startInSj;
+            ans.acceptorStart = genomeIndex_.genome->sjAcceptorStart_[ans.isj];
+            ans.acceptorLength = align.length - ans.donorLength;
+            return {true, ans};
+        } else {
+            return {false, {}};
+        }
+    }
+
+    void StitchingManagement::createRawWindowsSingle(const PositiveStrandAlign &positiveAlign) {
+        //create unflanked window for a single alignment
+        auto location = positiveAlign.genomeStart;
+        auto chrId = genomeIndex_.genome->getPosChrIndex(location);
+        Genome::Chromosome chr = genomeIndex_.genome->chromosomes_[chrId];
+        int64_t chrStartBin = chr.start >> config_.winBinSizeLog;
+        int64_t chrEndBin = (chr.start + chr.length - 1) >> config_.winBinSizeLog;
+
+        Window window;
+        window.chrIndex = chrId;
+        window.direction = positiveAlign.direction;
+        int64_t baseBin = location >> config_.winBinSizeLog;
+        int64_t baseBinKey = baseBin;
+        int64_t dir = positiveAlign.direction;
+
+        if (winBinMap_[dir][baseBinKey] != -1) {
+            // already exists, skip
+            return;
+        }
+
+
+        // try merging with left existing windows
+        int64_t binKey = baseBinKey;
+        int64_t leftBound = std::max(chrStartBin, baseBin - config_.winAnchorDistBins);
+        int32_t leftOverlap = -1;
+        for (binKey = binKey - 1; binKey >= leftBound; binKey--) {
+            if (winBinMap_[dir][binKey] != -1) {
+                leftOverlap = winBinMap_[dir][binKey];
+                break;
+            }
+        }
+        int32_t nowWindowIndex;
+        if (leftOverlap != -1) {
+            // merge with existing window
+            nowWindowIndex = leftOverlap;
+            for (binKey = binKey + 1; binKey <= baseBinKey; binKey++) {
+                winBinMap_[dir][binKey] = nowWindowIndex;
+            }
+
+        } else {
+            //create a new window
+            nowWindowIndex = windows_.size();
+        }
+        winBinMap_[dir][baseBinKey] = nowWindowIndex;
+
+        // try merging with right existing windows
+        int64_t rightBound = std::min(chrEndBin, baseBin + config_.winAnchorDistBins);
+        int32_t rightOverlap = -1;
+        for (binKey = baseBinKey + 1; binKey <= rightBound; binKey++) {
+            if (winBinMap_[dir][binKey] != -1) {
+                rightOverlap = winBinMap_[dir][binKey];
+            }
+        }
+        if (rightOverlap != -1) {
+            binKey = baseBinKey + 1;
+            //extend to reach the overlapping window
+            while (winBinMap_[dir][binKey] != rightOverlap) {
+                winBinMap_[dir][binKey] = nowWindowIndex;
+                binKey++;
+            }
+            // merge with right window
+            while (winBinMap_[dir][binKey] == rightOverlap) {
+                winBinMap_[dir][binKey] = nowWindowIndex;
+                binKey++;
+            }
+
+            window.endBin = binKey;
+            // kill right window
+            windows_[rightOverlap].startBin = 1;
+            windows_[rightOverlap].endBin = 0;
+        } else {
+            window.endBin = baseBin;
+        }
+        window.startBin = baseBin;
+        // update window information
+        if (leftOverlap == -1) {
+            //new window
+            windows_.emplace_back(window);
+        } else {
+            windows_[leftOverlap].endBin = window.endBin;
+        }
+    }
+
+    void StitchingManagement::createWindows(const Align *alignments, int alignNum) {
+        for (int alignInd = 0; alignInd < alignNum; ++alignInd) {
+            const Align &align = alignments[alignInd];
             if (!align.isAnchor) continue;
 
             for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
-                // Create Windows
-                auto positiveAlign = convertAlignToPositiveStrand(align, i);
-                auto location = positiveAlign.genomeStart;
-                auto chrId = genomeIndex_.genome->getPosChrIndex(location);
-                Genome::Chromosome chr = genomeIndex_.genome->chromosomes_[chrId];
-                int64_t chrStartBin = chr.start >> config_.winBinSizeLog;
-                int64_t chrEndBin = (chr.start + chr.length - 1) >> config_.winBinSizeLog;
-
-                Window window;
-                window.chrIndex = chrId;
-                window.direction = positiveAlign.direction;
-                int64_t baseBin = location >> config_.winBinSizeLog;
-                int64_t baseBinKey = baseBin;
-                int64_t dir = positiveAlign.direction;
-
-                if (winBinMap_[dir][baseBinKey] != -1) {
-                    // already exists, skip
+                // handle read crossing sj
+                if (genomeIndex_.suffixArray[i] > genomeIndex_.genome->originalGenomeLength) {
+                    // alignment on sj record
+                    auto [crossSJ, sjRecord] = trySplitSJ(align, genomeIndex_.suffixArray[i]);
+                    if (!crossSJ) continue;
+                    //create windows for both sides of the sj
+                    PositiveStrandAlign donor{
+                            sjRecord.donorStart,
+                            align.readStart,
+                            sjRecord.donorLength,
+                            align.direction,
+                            align.isAnchor,
+                            align.iFragment
+                    };
+                    PositiveStrandAlign acceptor{
+                            sjRecord.acceptorStart,
+                            align.readStart + sjRecord.donorLength,
+                            sjRecord.acceptorLength,
+                            align.direction,
+                            align.isAnchor,
+                            align.iFragment
+                    };
+                    createRawWindowsSingle(donor);
+                    createRawWindowsSingle(acceptor);
                     continue;
                 }
-
-
-                // try merging with left existing windows
-                int64_t binKey = baseBinKey;
-                int64_t leftBound = std::max(chrStartBin, baseBin - config_.winAnchorDistBins);
-                int32_t leftOverlap = -1;
-                for (binKey = binKey - 1; binKey >= leftBound; binKey--) {
-                    if (winBinMap_[dir][binKey] != -1) {
-                        leftOverlap = winBinMap_[dir][binKey];
-                        break;
-                    }
-                }
-                int32_t nowWindowIndex;
-                if (leftOverlap != -1) {
-                    // merge with existing window
-                    nowWindowIndex = leftOverlap;
-                    for (binKey = binKey + 1; binKey <= baseBinKey; binKey++) {
-                        winBinMap_[dir][binKey] = nowWindowIndex;
-                    }
-
-                } else {
-                    //create a new window
-                    nowWindowIndex = windows_.size();
-                }
-                winBinMap_[dir][baseBinKey] = nowWindowIndex;
-
-                // try merging with right existing windows
-                int64_t rightBound = std::min(chrEndBin, baseBin + config_.winAnchorDistBins);
-                int32_t rightOverlap = -1;
-                for (binKey = baseBinKey + 1; binKey <= rightBound; binKey++) {
-                    if (winBinMap_[dir][binKey] != -1) {
-                        rightOverlap = winBinMap_[dir][binKey];
-                    }
-                }
-                if (rightOverlap != -1) {
-                    binKey = baseBinKey + 1;
-                    //extend to reach the overlapping window
-                    while (winBinMap_[dir][binKey] != rightOverlap) {
-                        winBinMap_[dir][binKey] = nowWindowIndex;
-                        binKey++;
-                    }
-                    // merge with right window
-                    while (winBinMap_[dir][binKey] == rightOverlap) {
-                        winBinMap_[dir][binKey] = nowWindowIndex;
-                        binKey++;
-                    }
-
-                    window.endBin = binKey;
-                    // kill right window
-                    windows_[rightOverlap].startBin = 1;
-                    windows_[rightOverlap].endBin = 0;
-                } else {
-                    window.endBin = baseBin;
-                }
-                window.startBin = baseBin;
-                // update window information
-                if (leftOverlap == -1) {
-                    //new window
-                    windows_.emplace_back(window);
-                } else {
-                    windows_[leftOverlap].endBin = window.endBin;
-                }
-
+                // Create Windows
+                auto positiveAlign = convertAlignToPositiveStrand(align, i);
+                createRawWindowsSingle(positiveAlign);
             }
         }
 
@@ -269,7 +337,7 @@ namespace rna {
                 winBinMap_[dir][binKey] = i;
             }
             int64_t rightKeyBound = rightBin;
-            for (int64_t binKey = win.endBin; binKey < rightKeyBound; binKey++) {
+            for (int64_t binKey = win.endBin; binKey <= rightKeyBound; binKey++) {
                 winBinMap_[dir][binKey] = i;
             }
             win.startBin = leftBin;
@@ -284,16 +352,16 @@ namespace rna {
     }
 
 
-    void StitchingManagement::assignSingleAlignment(Window &win, const PositiveStrandAlign &a) const {
+    void StitchingManagement::assignSingleAlignment(Window &win, const PositiveStrandAlign &a, int64_t isj) const {
 
         // when window is full, check if it needs to be replaced
-        if (a.length < win.minLengthWhenFull && !a.isAnchor) return; // ignore too short no anchor alignment
+        if (a.length <= win.minLengthWhenFull && !a.isAnchor) return; // ignore too short no anchor alignment
 
         //detect overlap
         WindowAlign *aligns = win.aligns;
         int alignNum = win.alignNum;
         for (int i = 0; i < alignNum; ++i) {
-            if (a.genomeStart + aligns[i].readStart == aligns[i].genomeStart + a.readStart \
+            if (aligns[i].isj == isj && a.genomeStart + aligns[i].readStart == aligns[i].genomeStart + a.readStart \
  && (((a.readStart >= aligns[i].readStart) && a.readStart < aligns[i].readStart + aligns[i].length)\
  || (a.readStart + a.length > aligns[i].readStart &&
      a.readStart + a.length <= aligns[i].readStart + aligns[i].length))) {
@@ -318,7 +386,9 @@ namespace rna {
                                         a.genomeStart,
                                         a.length,
                                         a.length,
-                                        a.isAnchor
+                                        a.isAnchor,
+                                        isj,
+                                        a.iFragment
                                 };
                                 return;
                             } else aligns[j - 1] = aligns[j];
@@ -331,20 +401,24 @@ namespace rna {
                                         a.genomeStart,
                                         a.length,
                                         a.length,
-                                        a.isAnchor
+                                        a.isAnchor,
+                                        isj,
+                                        a.iFragment
                                 };
                                 return;
                             } else aligns[j + 1] = aligns[j];
                         }
 
-                            // reaching here means that a.readStart is the smallest, insert at the beginning
-                            aligns[0] = WindowAlign{
-                                    a.readStart,
-                                    a.genomeStart,
-                                    a.length,
-                                    a.length,
-                                    a.isAnchor
-                            };
+                        // reaching here means that a.readStart is the smallest, insert at the beginning
+                        aligns[0] = WindowAlign{
+                                a.readStart,
+                                a.genomeStart,
+                                a.length,
+                                a.length,
+                                a.isAnchor,
+                                isj,
+                                a.iFragment
+                        };
 
 
                     }
@@ -368,47 +442,43 @@ namespace rna {
                 }
             }
             if (removePos == -1) return; // all are anchors, cannot add new alignment
-            if (win.minLengthWhenFull >= a.length && !a.isAnchor) return; // new alignment is too short, ignore
 
-            //remove the removePos alignment and add the new one
 
-            for (int i = 0; i <= removePos; ++i) {
-                if (aligns[i].readStart > a.readStart) {
-                    // add here
-                    // move [i,removePos-1] to [i+1,removePos]
-                    for (int j = i + 1; j <= removePos; ++j) aligns[j] = aligns[j - 1];
-                    aligns[i] = WindowAlign{
-                            a.readStart,
-                            a.genomeStart,
-                            a.length,
-                            a.length,
-                            a.isAnchor
-                    };
-                    return;
+            //remove all shortest non-anchor alignments and insert the new one
+
+            int newAlignNum = 0;
+            int posToInsert = -1;
+            for (int i = 0; i < alignNum; ++i) {
+                if (aligns[i].length > win.minLengthWhenFull || aligns[i].isAnchor) {
+                    if (aligns[i].readStart >= a.readStart && posToInsert == -1) {
+                        posToInsert = newAlignNum++;
+                        aligns[newAlignNum] = aligns[i];
+                    } else {
+                        aligns[newAlignNum++] = aligns[i];
+                    }
                 }
             }
-            // reaching here means that a.readStart > alignToBeRemoved.readStart
-            for (int i = removePos; i < alignNum - 1; ++i) {
-                if (aligns[i + 1].readStart > a.readStart) {
-                    // add to i
-                    aligns[i] = WindowAlign{
-                            a.readStart,
-                            a.genomeStart,
-                            a.length,
-                            a.length,
-                            a.isAnchor
-                    };
-                    return;
-                } else aligns[i] = aligns[i + 1];
-            }
+            win.alignNum = newAlignNum;
+            if (win.minLengthWhenFull >= a.length && !a.isAnchor) return; // new alignment is too short, ignore
+            if (posToInsert == -1) posToInsert = newAlignNum++;
             // reaching here means that a.readStart is the largest
-            aligns[alignNum - 1] = WindowAlign{
+
+
+
+            for (int i = newAlignNum - 1; i > posToInsert; --i) {
+                aligns[i] = aligns[i - 1];
+            }
+            aligns[posToInsert] = WindowAlign{
                     a.readStart,
                     a.genomeStart,
                     a.length,
                     a.length,
-                    a.isAnchor
+                    a.isAnchor,
+                    isj,
+                    a.iFragment
             };
+            win.alignNum = newAlignNum;
+
             return;
         }
 
@@ -423,7 +493,9 @@ namespace rna {
                         a.genomeStart,
                         a.length,
                         a.length,
-                        a.isAnchor
+                        a.isAnchor,
+                        isj,
+                        a.iFragment
                 };
                 return;
             } else aligns[i] = aligns[i - 1];
@@ -434,19 +506,56 @@ namespace rna {
                 a.genomeStart,
                 a.length,
                 a.length,
-                a.isAnchor
+                a.isAnchor,
+                isj,
+                a.iFragment
         };
 
     }
 
-    void StitchingManagement::assignAlignmentsToWindows(const std::vector<Align> &alignments) {
+
+    void StitchingManagement::assignAlignmentsToWindows(const Align *alignments, int alignNum) {
         if (genomeIndex_.config.twoDirections) {
-            for (const auto &align: alignments) {
-                if (align.rep > config_.maxRep) continue; // skip alignments with too many reps
+            for (int i = 0; i < alignNum; ++i) {
+                const auto &align = alignments[i];
+                if (align.rep > config_.maxRep)
+                    continue; // skip alignments with too many reps
 
-                for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
+                for (size_t j = align.leftSAIndex; j <= align.rightSAIndex; ++j) {
+                    int64_t location = genomeIndex_.suffixArray[j];
+                    if (location > genomeIndex_.genome->originalGenomeLength) {
+                        auto [crossSJ, sjRecord] = trySplitSJ(align, location);
+                        if (!crossSJ) continue;
+                        // split the alignment into two parts
+                        PositiveStrandAlign donor{
+                                sjRecord.donorStart,
+                                align.readStart,
+                                sjRecord.donorLength,
+                                align.direction,
+                                align.isAnchor,
+                                align.iFragment
+                        };
+                        PositiveStrandAlign acceptor{
+                                sjRecord.acceptorStart,
+                                align.readStart + sjRecord.donorLength,
+                                sjRecord.acceptorLength,
+                                align.direction,
+                                align.isAnchor,
+                                align.iFragment
+                        };
+                        size_t binKey = (donor.genomeStart >> config_.winBinSizeLog);
+                        auto winId = winBinMap_[donor.direction][binKey];
+                        if (winId == -1) continue;
+                        Window &winDonor = windows_[winId];
+                        assignSingleAlignment(winDonor, donor, sjRecord.isj);
+                        binKey = (acceptor.genomeStart >> config_.winBinSizeLog);
+                        winId = winBinMap_[acceptor.direction][binKey];
+                        if (winId == -1) continue;
+                        Window &winAcceptor = windows_[winId];
+                        assignSingleAlignment(winAcceptor, acceptor, sjRecord.isj);
+                    }
 
-                    auto a = convertAlignToPositiveStrand(align, i);
+                    auto a = convertAlignToPositiveStrand(align, j);
                     size_t binKey = (a.genomeStart >> config_.winBinSizeLog);
                     auto winId = winBinMap_[a.direction][binKey];
                     if (winId == -1) continue;
@@ -466,59 +575,15 @@ namespace rna {
 
 
     // Generate transcripts for each window and find the best transcript
-    void StitchingManagement::generateTranscripts() {
 
-        for (auto &window: windows_) {
-
-            stitchWindowAligns(window);
-
-        }
-
-        for (const auto &t: transcripts_) {
-            bestTranscript_ = bestTranscript_->score < t.score ? std::make_shared<Transcript>(t) : bestTranscript_;
-        }
-    }
 
     void StitchingManagement::generateTranscriptsNew() {
-        for (auto &window:windows_){
+        for (auto &window: windows_) {
             stitchWindowsAlignNew(window);
         }
 
     }
 
-
-    void StitchingManagement::stitchWindowAligns(Window &window) {
-        //simple DP
-        size_t nAligns = window.alignNum;
-        if (nAligns == 0) return;  // no alignment
-        if (window.numAnchors == 0) return; // no anchor, cannot stitch
-
-        Transcript bestTranscriptOfCurrentWindow = Transcript();
-        std::vector<Transcript> formerTranscripts;
-        formerTranscripts.resize(nAligns);
-        for (size_t i = 0; i < nAligns; ++i) {
-            formerTranscripts[i].strand = window.direction;
-        }
-        // can be optimized by storing and reusing the 5' and 3' extension results
-        for (size_t i = 0; i < nAligns; ++i) {
-            Transcript bestTranscriptWithI = Transcript();
-            bestTranscriptWithI.strand = window.direction;
-            int64_t score = 0;// stitch score
-            score = stitchAlignmentToTranscript(window.aligns[i], bestTranscriptWithI);
-            for (size_t j = 0; j < i; ++j) {
-                Transcript t = formerTranscripts[j];//copy
-                score = stitchAlignmentToTranscript(window.aligns[i], t);
-                if (score < -1000000) continue; // invalid stitch
-                bestTranscriptWithI = bestTranscriptWithI.score < t.score ? t : bestTranscriptWithI;
-            }
-            formerTranscripts[i] = bestTranscriptWithI;
-            finalizeTranscript(bestTranscriptWithI, window.chrIndex);
-            bestTranscriptOfCurrentWindow = bestTranscriptWithI.score < bestTranscriptOfCurrentWindow.score ?
-                                            bestTranscriptOfCurrentWindow : bestTranscriptWithI;
-        }
-        if (bestTranscriptOfCurrentWindow.exons.empty()) return;
-        transcripts_.emplace_back(bestTranscriptOfCurrentWindow);
-    }
 
     //return: {matched,unmatched}
     inline std::pair<int64_t, int64_t> compareGenomeRead(const std::string &genomeSeq,
@@ -553,8 +618,8 @@ namespace rna {
                                                                            int64_t leftPos,
                                                                            int64_t rightPos) {
         // may optimize this function later, use hash and array
-        int left = charToIndex(genomeSeq[leftPos + 1])*5 + charToIndex(genomeSeq[leftPos + 2]);
-        int right = charToIndex(genomeSeq[rightPos - 1])*5 + charToIndex(genomeSeq[rightPos]);
+        int left = charToIndex(genomeSeq[leftPos + 1]) * 5 + charToIndex(genomeSeq[leftPos + 2]);
+        int right = charToIndex(genomeSeq[rightPos - 1]) * 5 + charToIndex(genomeSeq[rightPos]);
         // check the left motif
         if (left == 13) { // GT
             if (right == 2) // AG
@@ -579,283 +644,73 @@ namespace rna {
 
     // stitch a new piece of alignment to the transcript and return the STITCH score. The alignment's match score is not included
     // however, when maintaining the transcript, the alignment's match score is added to the transcript's total score
-    int64_t StitchingManagement::stitchAlignmentToTranscript(
-            WindowAlign &alignment,
-            Transcript &transcript) {
-        std::string &rSeq = read_->sequence[transcript.strand];
-        if (transcript.exons.empty()) {
-            // add the first alignment
-            transcript.readStart = alignment.readStart;
-            transcript.genomeStart = alignment.genomeStart;
-            transcript.exons.push_back(Exon{
-                    alignment.genomeStart,
-                    alignment.length,
-                    alignment.readStart,
-                    alignment.score
-            });
-            transcript.score = alignment.score;
-            transcript.matched = alignment.length;
-            transcript.aligns.push_back(alignment);
-
-            return 0; // no stitching happened
-        }
-
-        int64_t lastReadPos = transcript.exons.back().readStart + transcript.exons.back().length - 1;
-        int64_t lastGenomePos = transcript.exons.back().start + transcript.exons.back().length - 1;
-        int64_t alignmentReadEnd = alignment.readStart + alignment.length - 1;
-        int64_t alignmentReadStart = alignment.readStart;
-        int64_t alignmentGenomeEnd = alignment.genomeStart + alignment.length - 1;
-        int64_t alignmentGenomeStart = alignment.genomeStart;
-        int64_t length = alignment.length;
-        int64_t junctionType = 0;
-        int64_t junctionPos;
-        int64_t ins = 0;
-        int64_t del = 0;
-        // check if the alignment can be stitched
-        if (alignmentReadEnd <= lastReadPos) {
-            // fully overlap, cannot stitch
-            return -1000001;
-        }
-        if (alignmentGenomeEnd <= lastGenomePos) {
-            // fully overlap, cannot stitch
-            return -1000002;
-        }
-
-        if (alignmentReadStart <= lastReadPos) {
-            alignmentGenomeStart += (lastReadPos - alignmentReadStart + 1);
-            alignmentReadStart = lastReadPos + 1;
-            length = alignmentReadEnd - alignmentReadStart + 1;
-        }
-
-        // calculate gap
-        int64_t readGap = alignmentReadStart - (lastReadPos + 1);
-        int64_t genomeGap = alignmentGenomeStart - (lastGenomePos + 1);
-        int64_t lastIntronBase = alignmentGenomeStart - readGap - 1; // if all gap belongs to acceptor
-        int64_t score = 0;
-        int64_t nMatch = 0, nMismatch = 0;
 
 
-        if (readGap == genomeGap) {
-            // perfect match
-            if (readGap == 0) score = alignment.score;
-            else {
-                // same length gap, maybe there are some mismatches
-                auto matchResult = compareGenomeRead(
-                        genomeIndex_.genome->sequence_,
-                        rSeq,
-                        lastGenomePos + 1,
-                        lastReadPos + 1,
-                        readGap
-                );
-                score = matchResult.first * MATCH_SCORE + matchResult.second * MISMATCH_PENALTY;
-                transcript.matched += matchResult.first;
-                transcript.unmatched += matchResult.second;
-            }
-        } else if (genomeGap > readGap) {
-            // genome gap larger than read gap
-            // maybe there is a deletion
-            // an intron may be present
-            del = genomeGap - readGap;
-            if (del > MAX_INTRON_LENGTH) {
-                // gaps too large, cannot stitch
-                return -1000003;
-            }
-
-
-            int64_t junctionScore = 0;
-            junctionPos = 1;
-            int junctionCan = 0;
-
-            //find the best left pos
-            do {
-                junctionPos--;
-                if (rSeq[lastReadPos + junctionPos] !=
-                    genomeIndex_.genome->sequence_[lastIntronBase + junctionPos] &&
-                    rSeq[lastReadPos + junctionPos] ==
-                    genomeIndex_.genome->sequence_[lastGenomePos + junctionPos]) {
-                    junctionScore += MISMATCH_PENALTY;
-                }
-            } while (junctionScore + SCORE_STITCH_SJ_SHIFT >= 0 &&
-                     transcript.exons.back().length + junctionPos > 1);
-
-            junctionScore = 0;
-            int64_t maxScore = -1000000;
-            int64_t maxScoreJunctionReadPos = 0;
-            int64_t maxScoreJunctionCan = 0;
-            int64_t maxScorePenalty = 0;
-            do {
-                if (rSeq[lastReadPos + junctionPos] !=
-                    genomeIndex_.genome->sequence_[lastIntronBase + junctionPos] &&
-                    rSeq[lastReadPos + junctionPos] ==
-                    genomeIndex_.genome->sequence_[lastGenomePos + junctionPos]) {
-                    junctionScore += MATCH_SCORE;
-                }
-                if (rSeq[lastReadPos + junctionPos] ==
-                    genomeIndex_.genome->sequence_[lastIntronBase + junctionPos] &&
-                    rSeq[lastReadPos + junctionPos] !=
-                    genomeIndex_.genome->sequence_[lastGenomePos + junctionPos]) {
-                    junctionScore += MISMATCH_PENALTY;
-                }
-                int jType = -1;
-                int64_t junctionPenalty = 0;
-                if (del >= MIN_INTRON_LENGTH) {
-                    auto res = checkJunctionMotif(
-                            genomeIndex_.genome->sequence_,
-                            lastGenomePos + junctionPos,
-                            lastIntronBase + junctionPos
-                    );
-                    jType = res.first;
-                    junctionPenalty = res.second;
-                }
-
-
-                if (junctionScore + junctionPenalty > maxScore) {
-                    maxScore = junctionScore + junctionPenalty;
-                    maxScoreJunctionReadPos = junctionPos;
-                    maxScoreJunctionCan = jType;
-                    maxScorePenalty = junctionPenalty;
-                }
-                junctionPos++;
-            } while (junctionPos < alignmentReadEnd - lastReadPos);
-            junctionPos = maxScoreJunctionReadPos;
-            // score donor acceptor
-            for (int64_t i = std::min((int64_t) 1, maxScoreJunctionReadPos + 1);
-                 i <= std::max(readGap, maxScoreJunctionReadPos); ++i) {
-                uint64_t g = (i < maxScoreJunctionReadPos) ? (lastGenomePos + i) : (lastIntronBase + i);
-                if (rSeq[lastReadPos + i] != genomeIndex_.genome->sequence_[g]) {
-                    nMismatch++;
-                    score += MISMATCH_PENALTY;
-                    if (i < 1 || i > readGap) {
-                        score -= MATCH_SCORE;
-                        nMatch--;
-                    }
-                } else {
-                    if (i >= 1 && i <= readGap) {
-                        nMatch++;
-                        score += MATCH_SCORE;
-                    }
-                }
-            }
-
-            // score the gap
-            if (del > MIN_INTRON_LENGTH) {
-                //intron
-                score += GAP_OPEN_PENALTY + maxScorePenalty;
-
-            } else {
-                maxScoreJunctionCan = -1;//mark deletion
-                score += DEL_OPEN_PENALTY + del * DEL_EXTEND_PENALTY;
-            }
-            junctionType = maxScoreJunctionCan;
-            transcript.matched += nMatch;
-            transcript.unmatched += nMismatch;
-
-        } else if (readGap > genomeGap) {
-            // insertion
-            ins = readGap - genomeGap;
-            junctionPos = 0;
-            // when genomeGap == 0, no need to stitch
-            if (genomeGap < 0) {
-                //overlapping
-                score += genomeGap * MATCH_SCORE;//reduce score
-            } else if (genomeGap > 0) {
-                int64_t tmpScore = 0, maxScore = 0;
-                for (int64_t jPos = 1; jPos <= genomeGap; ++jPos) {
-                    tmpScore += (rSeq[lastReadPos + jPos] ==
-                                 genomeIndex_.genome->sequence_[lastGenomePos + jPos]) ?
-                                MATCH_SCORE : -MATCH_SCORE;
-                    tmpScore += (rSeq[lastReadPos + ins + jPos] ==
-                                 genomeIndex_.genome->sequence_[lastGenomePos + jPos]) ?
-                                -MATCH_SCORE : MATCH_SCORE;
-                    if (tmpScore > maxScore) {
-                        maxScore = tmpScore;
-                        junctionPos = jPos;
-                    }
-                }
-
-                //score donor and acceptor
-                for (int64_t i = 1; i <= genomeGap; i++) {
-                    int64_t r = lastReadPos + i + (i <= junctionPos ? 0 : ins);
-                    if (genomeIndex_.genome->sequence_[lastGenomePos + i] !=
-                        rSeq[r]) {
-                        nMismatch++;
-                        score += MISMATCH_PENALTY;
-                    } else {
-                        nMatch++;
-                        score += MATCH_SCORE;
-                    }
-                }
-            }
-            score += ins * INS_EXTEND_PENALTY + INS_OPEN_PENALTY;
-            transcript.matched += nMatch;
-            transcript.unmatched += nMismatch;
-            junctionType = -2; // mark insertion
-        }
-
-        // add to transcript, if there are no insertions or deletions, just extend the last exon
-        if (genomeGap == readGap) {
-            transcript.aligns.back().length += length + readGap;
-            transcript.aligns.back().score += alignment.score;
-            transcript.exons.back().length += length + readGap;
-            transcript.exons.back().score += alignment.score;
-
-        } else {
-            transcript.aligns.push_back(alignment);
-            transcript.exons.back().length += junctionPos;
-            if (del > 0) {
-                transcript.exons.push_back(Exon{
-                        lastIntronBase + 1 + junctionPos,
-                        alignmentReadEnd - lastReadPos - junctionPos,
-                        lastReadPos + 1 + junctionPos,
-                        alignment.score
-                });
-
-            } else if (ins > 0) {
-                transcript.exons.push_back(Exon{
-                        lastGenomePos + junctionPos + 1,
-                        alignmentGenomeEnd - alignmentGenomeStart - junctionPos - ins,
-                        lastReadPos + junctionPos + ins + 1,
-                        alignment.score
-                });
-            }
-            transcript.sj.push_back(
-                    SpliceJunction{junctionType, genomeGap - readGap, false});// cannot handle annotated junctions yet
-
-        }
-
-        transcript.score += alignment.score;//add alignment score
-        transcript.score += score;// add stitch score
-        transcript.matched += transcript.exons.back().length; // update matched bases
-
-        return score;
-    }
-
-
-    int totalStitchNum = 0;
 
     void
     StitchingManagement::stitchingBetweenWindowAligns(const rna::WindowAlign &a1, const rna::WindowAlign &a2,
-                                                      int windowDir,StitchingRecord& record) {
+                                                      int windowDir, StitchingRecord &record) {
         //calculate the stitching score between two alignments
         //stitch a2 to a1
-
-
-        std::string &genomeSeq = genomeIndex_.genome->sequence_;
-        std::string &readSeq = read_->sequence[windowDir];
 
         const int64_t a2ReadEnd = a2.readStart + a2.length - 1;
         const int64_t a2GenomeEnd = a2.genomeStart + a2.length - 1;
         const int64_t a1ReadEnd = a1.readStart + a1.length - 1;
         const int64_t a1GenomeEnd = a1.genomeStart + a1.length - 1;
-        int64_t a2ReadStart = a2.readStart;
-        int64_t a2GenomeStart = a2.genomeStart;
-        int64_t a2Length = a2.length;
+
+        if (a1.iFragment != a2.iFragment){
+            // stitching between paired reads
+            // handle mates extension while DP
+            record.type = StitchingRecord::CROSS_FRAGMENTS;
+            record.score = a2.length * MATCH_SCORE;
+            record.matches = a2.length;
+            record.mismatches = 0;
+            record.stitchingType.type = -3;
+            record.formerExonLengthShift = 0;
+            record.latterExonLengthShift = 0;
+            return;
+        }
+
+
+
+        if(a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart ){
+            // annotated splice junction
+            if (genomeIndex_.genome->sjdb[a2.isj].motif == 0
+                &&(a2.length <= genomeIndex_.genome->sjdb[a2.isj].shiftRight||
+                a1.length <= genomeIndex_.genome->sjdb[a2.isj].shiftLeft)) {
+                // too large repeats around non-canonical
+                record.type = StitchingRecord::CANNOT_STITCH;
+                return;
+            }
+            record.type = StitchingRecord::SPLICE_JUNCTION;
+            record.score = SCORE_ANNOTATED_SJ + a2.length * MATCH_SCORE;
+            record.formerExonLengthShift = 0;
+            record.latterExonLengthShift = 0;
+            record.matches = a2.length;
+            record.mismatches = 0;
+            record.stitchingType = {genomeIndex_.genome->sjdb[a2.isj].motif, a2.genomeStart - (a1GenomeEnd + 1), true};
+            return;
+        }
+
+
+
+
+
+
+
+
 
         if (a2ReadEnd <= a1ReadEnd || a2GenomeEnd <= a1GenomeEnd) {
             // r or g fully overlap, cannot stitch
             record.type = StitchingRecord::CANNOT_STITCH;
             return;
         }
+
+        int64_t a2ReadStart = a2.readStart;
+        int64_t a2GenomeStart = a2.genomeStart;
+        int64_t a2Length = a2.length;
+        std::string &genomeSeq = genomeIndex_.genome->sequence_;
+        std::string &readSeq = read_->sequence[windowDir];
 
         if (a2.readStart <= a1ReadEnd) {
             // a2 5' overlaps a1 3'
@@ -987,25 +842,40 @@ namespace rna {
                 }
             }
 
+
+            if (junctionType < 0 || (MAX_MISMATCH_FOR_SJ[(junctionType + 1) / 2] == -1 ||
+                                     nMismatch <= MAX_MISMATCH_FOR_SJ[(junctionType + 1) / 2])) {
+                // valid junction
+            } else {
+                // not a valid junction
+                record.type = StitchingRecord::CANNOT_STITCH;
+                return;
+            }
+
             // score the gap
             // todo check if the junction is annotated
+            if (genomeIndex_.genome->sjdbNum > 0) {
+
+            }
 
             if (Del > MIN_INTRON_LENGTH) {
                 record.score += GAP_OPEN_PENALTY + junctionPenalty;
                 record.type = StitchingRecord::SPLICE_JUNCTION;
 
             } else {
-                junctionType = SIMPLE_DELETION; // mark deletion
                 record.score += DEL_OPEN_PENALTY + Del * DEL_EXTEND_PENALTY;
                 record.type = StitchingRecord::DELETION;
             }
             record.formerExonLengthShift = junctionReadPos;
-            record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos) - a2Length;
+            record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos) - a2.length;
             record.matches = nMatch + a2Length;
             record.mismatches = nMismatch;
-            record.stitchingType = {junctionType, Del, false};
+            int sjStrand = 0;
+            if (junctionType > 0) sjStrand = 2- (junctionType % 2);
+            record.stitchingType = {junctionType, Del, false,0,0,sjStrand};
 
         } else if (readGap > genomeGap) {
+            //insert
             record.score = MATCH_SCORE * a2Length;
             Ins = readGap - genomeGap;
             if (genomeGap == 0) {
@@ -1055,7 +925,7 @@ namespace rna {
             junctionType = SIMPLE_INSERTION; // mark insertion
             record.type = StitchingRecord::INSERTION;
             record.formerExonLengthShift = junctionReadPos;
-            record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos - Ins) - a2Length;
+            record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos - Ins) - a2.length;
             record.matches = nMatch + a2Length;
             record.mismatches = nMismatch;
             record.stitchingType = {junctionType, Ins, false};
@@ -1065,74 +935,119 @@ namespace rna {
     }
 
     // extend the alignment
-  void StitchingManagement::extendWindowAlign(const WindowAlign &a, int windowDir, int extendDir, ExtensionRecord& res) {
+    void
+    StitchingManagement::extendWindowAlign(const WindowAlign &a, int windowDir, int extendDir, ExtensionRecord &res) {
         std::string &genomeSeq = genomeIndex_.genome->sequence_;
         std::string &readSeq = read_->sequence[windowDir];
 
 
         int mismatchCount = 0;
         int matchCount = 0;
+        int maxExtendScore = 0;
+        int maxScoreMismatch = 0;
+        int maxScoreLength = 0;
+        int maxScoreMatch = 0;
+        int extendScore = 0;
         if (extendDir == 0) {
             // extend forward
             int64_t extendLength = a.readStart;
-            for (int i = 1; i <= extendLength; ++i) {
-                int64_t genomePos = a.genomeStart - i;
-                int64_t readPos = a.readStart - i;
+            int l = 1;
+            for (l = 1; l <= extendLength; ++l) {
+                int64_t genomePos = a.genomeStart - l;
+                int64_t readPos = a.readStart - l;
                 if (genomeSeq[genomePos] == 'N' || readSeq[readPos] == 'N') continue;
                 if (genomeSeq[genomePos] == '#') break;
+                if (readSeq[readPos] == '#') break; // spacer between paired reads
                 if (genomeSeq[genomePos] != readSeq[readPos]) {
+                    if (extendScore > maxExtendScore) {
+                        maxExtendScore = extendScore;
+                        maxScoreLength = l - 1;
+                        maxScoreMatch = matchCount;
+                        maxScoreMismatch = mismatchCount;
+                    }
                     res.maxExtensionLengthWithMismatch[mismatchCount] = {
-                            .length = i - 1,
-                            .matched = matchCount,
+                            .length = maxScoreLength,
+                            .matched = maxScoreMatch,
+                            .mismatches = maxScoreMismatch
                     };
                     ++mismatchCount;
+                    --extendScore;
                     if (mismatchCount > config_.maxMismatch) break; // stop extending if too many mismatches
                 } else {
                     ++matchCount;
+                    ++extendScore;
                 }
             }
 
             if (mismatchCount <= config_.maxMismatch) {
+                if (extendScore > maxExtendScore) {
+                    maxExtendScore = extendScore;
+                    maxScoreLength = (int) l - 1;
+                    maxScoreMatch = matchCount;
+                    maxScoreMismatch = mismatchCount;
+                }
                 res.maxMismatch = mismatchCount;
                 res.maxExtensionLengthWithMismatch[mismatchCount] = {
-                        .length = (int) extendLength,
-                        .matched = matchCount
+                        .length = maxScoreLength,
+                        .matched = maxScoreMatch,
+                        .mismatches = maxScoreMismatch
                 };
             } else {
                 res.maxMismatch = config_.maxMismatch;
             }
+            res.maxExtensionScore = maxExtendScore;
 
         } else {
             // extend backward
             int64_t extendLength = read_->length - a.readStart - a.length;
             int64_t pieceEndReadPos = a.readStart + a.length - 1;
             int64_t pieceEndGenomePos = a.genomeStart + a.length - 1;
-            for (int i = 1; i <= extendLength; ++i) {
-                int64_t readPos = pieceEndReadPos + i;
-                int64_t genomePos = pieceEndGenomePos + i;
+            int l;
+            for (l = 1; l <= extendLength; ++l) {
+                int64_t readPos = pieceEndReadPos + l;
+                int64_t genomePos = pieceEndGenomePos + l;
                 if (genomeSeq[genomePos] == 'N' || readSeq[readPos] == 'N') continue;
                 if (genomeSeq[genomePos] == '#') break;
+                if (readSeq[readPos] == '#') break; // spacer between paired reads
                 if (genomeSeq[genomePos] != readSeq[readPos]) {
+                    if (extendScore > maxExtendScore) {
+                        maxExtendScore = extendScore;
+                        maxScoreLength = l - 1;
+                        maxScoreMatch = matchCount;
+                        maxScoreMismatch = mismatchCount;
+                    }
                     res.maxExtensionLengthWithMismatch[mismatchCount] = {
-                            .length = i - 1,
-                            .matched = matchCount,
+                            .length = maxScoreLength,
+                            .matched = maxScoreMatch,
+                            .mismatches = maxScoreMismatch
                     };
                     ++mismatchCount;
+                    --extendScore;
                     if (mismatchCount > config_.maxMismatch) break; // stop extending if too many mismatches
                 } else {
                     ++matchCount;
+                    ++extendScore;
                 }
             }
 
             if (mismatchCount <= config_.maxMismatch) {
+                if (extendScore > maxExtendScore) {
+                    maxExtendScore = extendScore;
+                    maxScoreLength = (int) l-1;
+                    maxScoreMatch = matchCount;
+                    maxScoreMismatch = mismatchCount;
+                }
                 res.maxMismatch = mismatchCount;
                 res.maxExtensionLengthWithMismatch[mismatchCount] = {
-                        .length = (int) extendLength,
-                        .matched = matchCount
+                        .length = maxScoreLength,
+                        .matched = maxScoreMatch,
+                        .mismatches = maxScoreMismatch
                 };
             } else {
                 res.maxMismatch = config_.maxMismatch;
             }
+
+            res.maxExtensionScore = maxExtendScore;
 
         }
 
@@ -1156,19 +1071,45 @@ namespace rna {
         if (nAligns == 0) return;  // no alignment
         if (window.numAnchors == 0) return; // no anchor, cannot stitch
 
+        //todo filter alignSJOverhangMin
+
+        //todo when stitching between paired reads, would it be better to extend the alignments after stitching frag0 and frag1?
+
+        for (int i = 0; i < nAligns; ++i) {
+            extendWindowAlign(window.aligns[i], window.direction, 0, nowExtensionRecord_[0][i]);
+            extendWindowAlign(window.aligns[i], window.direction, 1, nowExtensionRecord_[1][i]);
+        }
+
+        // judge whether it is hopeful to produce a valid transcript
+        //todo there might be a better way to estimate the max possible score
+        {
+            int64_t nowReadStart = 0;
+            int64_t nowScore = 0;
+            int64_t maxPossibleScore = 0;
+            for (int i = 0; i < nAligns; ++i) {
+                if (nowReadStart < window.aligns[i].readStart) {
+                    maxPossibleScore += nowScore;
+                    nowScore = 0;
+                    nowReadStart = window.aligns[i].readStart;
+                }
+                nowScore = std::max(window.aligns[i].length + nowExtensionRecord_[0][i].maxExtensionScore +
+                                    nowExtensionRecord_[1][i].maxExtensionScore, nowScore);
+            }
+            maxPossibleScore += nowScore;
+            if (maxPossibleScore < outFilterScoreMin_) return; // cannot produce a valid transcript, skip this window
+        }
+
+
         int nowIndex = 0;
         for (int i = 0; i < nAligns; ++i) {
             for (int j = i + 1; j < nAligns; ++j) {
-                  stitchingBetweenWindowAligns(window.aligns[i], window.aligns[j],
-                                                                             window.direction,nowStitchingRecord_[nowIndex]);
+                stitchingBetweenWindowAligns(window.aligns[i], window.aligns[j],
+                                             window.direction, nowStitchingRecord_[nowIndex]);
                 ++nowIndex;
             }
         }
 
-        for (int i = 0; i < nAligns; ++i) {
-            extendWindowAlign(window.aligns[i], window.direction, 0,nowExtensionRecord_[0][i]);
-            extendWindowAlign(window.aligns[i], window.direction, 1,nowExtensionRecord_[1][i]);
-        }
+
 
         // DP, calculate the best stitching beginning with i and ending with j, for all alignments i,j
         // this may require n^3 time complexity, but the Constant is very low. We have stored all important information in nowStitchingRecord_ and nowExtensionRecord_
@@ -1184,9 +1125,15 @@ namespace rna {
                     t.mismatches = 0;
                     t.matches = window.aligns[i].length;
                     t.exonCount = 1;
+                    t.startAlignId = i;
+                    t.crossFragments = false;
+                    t.firstFragmentMatchEnd = 0;
+
+
                 } else {
                     RawTranscript &t = nowRawTranscript_[getRawTranscriptIndex(i, k, nAligns)];
                     t.score = -1000000;
+                    t.startAlignId = i;
                     for (int j = 0; j < k; ++j) {
                         //find [i,i+j], try stitching i+j and i+k
                         int formerTranscriptId = getRawTranscriptIndex(i, j, nAligns);
@@ -1195,6 +1142,76 @@ namespace rna {
                         StitchingRecord &stitchingR = nowStitchingRecord_[getStitchingRecordIndex(i + j, i + k,
                                                                                                   nAligns)];
                         if (stitchingR.type == StitchingRecord::CANNOT_STITCH) continue; // cannot stitch
+
+                        //handle fragment crossing
+                        if (stitchingR.type == StitchingRecord::CROSS_FRAGMENTS) {
+                            // handle alignEndsProtrude
+                            if (window.aligns[i].readStart + window.aligns[i+k].genomeStart + ALIGN_ENDS_PROTRUDE < window.aligns[i].genomeStart ) continue;
+
+                            //todo need to fix
+                            if (window.aligns[i+k].genomeStart + readLength - window.aligns[i+k].readStart +readLength < window.aligns[i+j].genomeStart +window.aligns[i+j].length) continue;
+
+                            // todo check junction consistency
+                            // todo add parameter alignMateGapMax
+                            const ExtensionRecord &e1 = nowExtensionRecord_[1][i + j]; // extend backward of former alignment
+                            int nowMismatchToleranceRemaining = config_.maxMismatch - formerT.mismatches;
+                            auto extendedInfo1 = e1.maxExtensionLengthWithMismatch[std::min(e1.maxMismatch, nowMismatchToleranceRemaining)];
+                            nowMismatchToleranceRemaining -= extendedInfo1.mismatches;
+                            const ExtensionRecord &e2 = nowExtensionRecord_[0][i + k]; // extend forward of latter alignment
+                            int64_t maxLatterExtensionLength = window.aligns[i].readStart + window.aligns[i+k].genomeStart - window.aligns[i].genomeStart;
+
+                            int64_t maxLatterFragmentMismatch = std::min(e2.maxMismatch, nowMismatchToleranceRemaining);
+                            auto extendedInfo2 = e2.maxExtensionLengthWithMismatch[std::min(e2.maxMismatch, nowMismatchToleranceRemaining)];
+
+                            //todo binary search
+                            if (extendedInfo2.length > maxLatterExtensionLength){
+                                int nowMismatch = extendedInfo2.mismatches;
+                                while (extendedInfo2.length > maxLatterExtensionLength){
+                                    if (nowMismatch == 0){
+                                        extendedInfo2.length = maxLatterExtensionLength;
+                                        extendedInfo2.mismatches = 0;
+                                        extendedInfo2.matched = maxLatterExtensionLength;
+                                        break;
+                                    }else {
+                                        nowMismatch--;
+                                        extendedInfo2 = e2.maxExtensionLengthWithMismatch[nowMismatch];
+                                        if (extendedInfo2.length <= maxLatterExtensionLength){
+                                            extendedInfo2.length = maxLatterExtensionLength;
+                                            extendedInfo2.mismatches = nowMismatch + 1;
+                                            extendedInfo2.matched = maxLatterExtensionLength - extendedInfo2.mismatches;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+
+                            int64_t nowScore = formerT.score + stitchingR.score + extendedInfo1.matched * MATCH_SCORE + extendedInfo1.mismatches * MISMATCH_PENALTY
+                                      + extendedInfo2.matched * MATCH_SCORE + extendedInfo2.mismatches * MISMATCH_PENALTY;
+
+                            if (nowScore > t.score || (nowScore == t.score && formerT.exonCount > t.exonCount)){
+                                t.score = nowScore;
+                                t.mismatches = formerT.mismatches + stitchingR.mismatches + extendedInfo1.mismatches + extendedInfo2.mismatches;
+                                t.matches = formerT.matches + stitchingR.matches + extendedInfo1.matched + extendedInfo2.matched;
+                                t.previousTranscriptId = formerTranscriptId;
+                                t.newAlignId = i + k;
+                                t.exonCount = formerT.exonCount + 1;
+                                t.crossFragments = true;
+                                t.extendedLengthFragmentFormer = extendedInfo1.length;
+                                t.extendedLengthFragmentLatter = extendedInfo2.length;
+                                t.firstFragmentMatchEnd = window.aligns[i+j].genomeStart + window.aligns[i+j].length;
+
+                            }
+
+
+                            continue;
+
+
+
+                        }
+
+
+
                         if (formerT.mismatches + stitchingR.mismatches > config_.maxMismatch)
                             continue; // too many mismatches
                         if (formerT.exonCount == config_.maxExons) continue; // too many exons
@@ -1212,6 +1229,10 @@ namespace rna {
                             } else {
                                 t.exonCount = formerT.exonCount; // just extend the last exon
                             }
+                            t.crossFragments = formerT.crossFragments;
+                            t.extendedLengthFragmentFormer = formerT.extendedLengthFragmentFormer;
+                            t.extendedLengthFragmentLatter = formerT.extendedLengthFragmentLatter;
+                            t.firstFragmentMatchEnd = formerT.firstFragmentMatchEnd;
                         }
                     }
                 }
@@ -1227,32 +1248,32 @@ namespace rna {
         for (int i = 0; i < nAligns; ++i) {
             for (int j = 0; j < nAligns - i; ++j) {
                 RawTranscript &t = nowRawTranscript_[getRawTranscriptIndex(i, j, nAligns)];
+                if (t.score < 0) continue;
                 int maxMismatchRemaining = config_.maxMismatch - t.mismatches;
                 // this cannot happen, but just in case of bugs
                 if (maxMismatchRemaining < 0) {
                     t.score = -1000000; // too many mismatches, invalid transcript
                     continue;
                 }
+
+
+
                 int dir = firstDirToExtend;
                 int endAlignId = dir == 0 ? i : i + j;
                 const ExtensionRecord &e1 = nowExtensionRecord_[firstDirToExtend][endAlignId];
                 int extendLength = 0;
-                if (e1.maxMismatch <= maxMismatchRemaining) {
 
 
-                    maxMismatchRemaining -= e1.maxMismatch;
-                    int score = e1.maxExtensionLengthWithMismatch[e1.maxMismatch].matched * MATCH_SCORE -
-                                e1.maxMismatch * MATCH_SCORE;
-                    t.score += score;
-                    t.mismatches += e1.maxMismatch;
-                    extendLength = e1.maxExtensionLengthWithMismatch[e1.maxMismatch].length;
-                } else {
-                    int score = e1.maxExtensionLengthWithMismatch[maxMismatchRemaining].matched * MATCH_SCORE -
-                                maxMismatchRemaining * MATCH_SCORE;
-                    t.score += score;
-                    t.mismatches += maxMismatchRemaining;
-                    extendLength = e1.maxExtensionLengthWithMismatch[maxMismatchRemaining].length;
-                }
+                ExtensionRecord::singleExtensionRecord extendInfo;
+                int score;
+
+                extendInfo = e1.maxExtensionLengthWithMismatch[std::min(e1.maxMismatch, maxMismatchRemaining)];
+                maxMismatchRemaining -= extendInfo.mismatches;
+                score = extendInfo.matched * MATCH_SCORE - extendInfo.mismatches * MATCH_SCORE;
+                t.score += score;
+                t.mismatches += extendInfo.mismatches;
+                t.matches += extendInfo.matched;
+                extendLength = extendInfo.length;
 
                 if (dir == 0) {
                     t.extendedLengthForward = extendLength;
@@ -1263,20 +1284,14 @@ namespace rna {
                 dir = 1 - dir; // switch direction
                 endAlignId = dir == 0 ? i : i + j;
                 const ExtensionRecord &e2 = nowExtensionRecord_[dir][endAlignId];
-                if (e2.maxMismatch <= maxMismatchRemaining) {
-                    maxMismatchRemaining -= e2.maxMismatch;
-                    int score = e2.maxExtensionLengthWithMismatch[e2.maxMismatch].matched * MATCH_SCORE -
-                                e2.maxMismatch * MATCH_SCORE;
-                    t.score += score;
-                    t.mismatches += e2.maxMismatch;
-                    extendLength = e2.maxExtensionLengthWithMismatch[e2.maxMismatch].length;
-                } else {
-                    int score = e2.maxExtensionLengthWithMismatch[maxMismatchRemaining].matched * MATCH_SCORE -
-                                maxMismatchRemaining * MATCH_SCORE;
-                    t.score += score;
-                    t.mismatches += maxMismatchRemaining;
-                    extendLength = e2.maxExtensionLengthWithMismatch[maxMismatchRemaining].length;
-                }
+
+                extendInfo = e2.maxExtensionLengthWithMismatch[std::min(e2.maxMismatch, maxMismatchRemaining)];
+                maxMismatchRemaining -= extendInfo.mismatches;
+                score = extendInfo.matched * MATCH_SCORE - extendInfo.mismatches * MATCH_SCORE;
+                t.score += score;
+                t.mismatches += extendInfo.mismatches;
+                t.matches += extendInfo.matched;
+                extendLength = extendInfo.length;
 
                 if (dir == 0) {
                     t.extendedLengthForward = extendLength;
@@ -1287,11 +1302,12 @@ namespace rna {
                 //extension finished
 
                 // finalize the transcript by adding the length penalty
-                t.score -= int64_t(log2(window.aligns[i + j].genomeStart + window.aligns[i + j].length -
-                                        window.aligns[i].genomeStart) / 4);
+                t.score += int64_t(ceil(log2(double(window.aligns[i + j].genomeStart + window.aligns[i + j].length -
+                                                    window.aligns[i].genomeStart)) * -0.25 - 0.5));
 
 
-                if (t.score > localBestScore) localBestScore = t.score;
+                if (t.score > localBestScore)
+                    localBestScore = t.score;
 
             }
         }
@@ -1316,30 +1332,123 @@ namespace rna {
                 // convert the RawTranscript to a Transcript object
                 // find the pos to insert
                 // todo will it be better to store in ascending order?
+                // check multiplicity
 
+                bool alreadyExists = false;
+
+                Transcript curT;
+                curT.chr = chrName;
+                curT.strand = window.direction;
+                curT.matched = t.matches;
+                curT.unmatched = t.mismatches;
+                curT.score = t.score;
+                curT.exons.resize(t.exonCount);
+                curT.sj.resize(t.exonCount - 1);
+                // recover the exons and splice junctions, aligns no longer needed
+
+                // add the last exon
+                WindowAlign &lastWA = window.aligns[t.newAlignId];
+                curT.exons[t.exonCount - 1] = Exon{
+                        lastWA.genomeStart,
+                        lastWA.length + t.extendedLengthBackward,
+                        lastWA.readStart
+                };
+
+                int nowRawTranscriptIndex = t.previousTranscriptId;
+                int rightAlignId = t.newAlignId;
+                int alignPos = t.exonCount - 1; // for convenience
+                while (nowRawTranscriptIndex != -1) {
+
+                    const RawTranscript &nowRawT = nowRawTranscript_[nowRawTranscriptIndex];
+                    const WindowAlign &nowWindowAlign = window.aligns[nowRawT.newAlignId];
+                    const StitchingRecord &stitchingRecord = nowStitchingRecord_[getStitchingRecordIndex(
+                            nowRawT.newAlignId, rightAlignId, nAligns)];
+                    if (stitchingRecord.type == StitchingRecord::CROSS_FRAGMENTS){
+                        // handle fragment crossing
+                        if (t.extendedLengthFragmentLatter > 0) {
+                            // extend the latter exon
+                            curT.exons[alignPos].length += t.extendedLengthFragmentLatter;
+                            curT.exons[alignPos].readStart -= t.extendedLengthFragmentLatter;
+                            curT.exons[alignPos].start -= t.extendedLengthFragmentLatter;
+                        }
+                        // add a new exon for the former fragment
+                        --alignPos;
+                        curT.exons[alignPos].start = nowWindowAlign.genomeStart;
+                        curT.exons[alignPos].length = nowWindowAlign.length + t.extendedLengthFragmentFormer;
+                        curT.exons[alignPos].readStart = nowWindowAlign.readStart;
+                        curT.sj[alignPos] = stitchingRecord.stitchingType;
+
+                        nowRawTranscriptIndex = nowRawT.previousTranscriptId;
+                        rightAlignId = nowRawT.newAlignId;
+                        continue;
+
+                    }else if (stitchingRecord.type == StitchingRecord::PERFECT_MATCH ||
+                        stitchingRecord.type == StitchingRecord::SAME_GAP) {
+                        // just extend the exon
+                        curT.exons[alignPos].length += stitchingRecord.latterExonLengthShift;
+                        curT.exons[alignPos].readStart -= stitchingRecord.latterExonLengthShift;
+                        curT.exons[alignPos].start -= stitchingRecord.latterExonLengthShift;
+                    } else {
+                        //add a new exon and a new splice junction
+                        --alignPos;
+                        curT.exons[alignPos].start = nowWindowAlign.genomeStart;
+                        curT.exons[alignPos].length = nowWindowAlign.length + stitchingRecord.formerExonLengthShift;
+                        curT.exons[alignPos].readStart = nowWindowAlign.readStart;
+                        curT.exons[alignPos + 1].start -= stitchingRecord.latterExonLengthShift;
+                        curT.exons[alignPos + 1].length += stitchingRecord.latterExonLengthShift;
+                        curT.exons[alignPos + 1].readStart -= stitchingRecord.latterExonLengthShift;
+                        curT.sj[alignPos] = stitchingRecord.stitchingType;
+                    }
+
+                    nowRawTranscriptIndex = nowRawT.previousTranscriptId;
+                    rightAlignId = nowRawT.newAlignId;
+                }
+
+                curT.exons[0].start -= t.extendedLengthForward;
+                curT.exons[0].length += t.extendedLengthForward;
+                curT.exons[0].readStart -= t.extendedLengthForward;
+                curT.readStart = curT.exons[0].readStart;
+                curT.genomeStart = curT.exons[0].start;
+                curT.posInChr = curT.genomeStart - chrStart;
+                curT.chrStartPos = chrStart;
+                curT.readLength = readLength;
+                curT.CIGAR = curT.getCIGAR();
+
+                for (int iT = 0; iT < numGoodTranscripts_; ++iT) {
+                    if (goodTranscripts_[iT].genomeStart == curT.genomeStart &&
+                        goodTranscripts_[iT].exons.back().start + goodTranscripts_[iT].exons.back().length ==
+                        curT.exons.back().start + curT.exons.back().length &&
+                        curT.CIGAR == goodTranscripts_[iT].CIGAR) {
+
+                        // same transcript already exists
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                if (alreadyExists) continue; // skip this transcript, already exists
 
                 int posToInsert = numGoodTranscripts_;
-                if (numGoodTranscripts_ < config_.transcriptStoredMax){
+                if (numGoodTranscripts_ < config_.transcriptStoredMax) {
                     ++numGoodTranscripts_;
-                    for (posToInsert = numGoodTranscripts_ - 1; posToInsert > 0; --posToInsert){
-                        if (goodTranscripts_[posToInsert - 1].score > t.score ||
+                    for (posToInsert = numGoodTranscripts_ - 1; posToInsert > 0; --posToInsert) {
+                        if (goodTranscripts_[posToInsert - 1].score < t.score ||
                             (goodTranscripts_[posToInsert - 1].score == t.score &&
-                             goodTranscripts_[posToInsert - 1].matched >= t.matches)) {
+                             goodTranscripts_[posToInsert - 1].matched < t.matches)) {
                             goodTranscripts_[posToInsert] = std::move(goodTranscripts_[posToInsert - 1]);
                         } else {
                             break;
                         }
                     }
-                }else {
-                    if (goodTranscripts_[posToInsert - 1].score > t.score ||
+                } else {
+                    if (goodTranscripts_[posToInsert - 1].score < t.score ||
                         (goodTranscripts_[posToInsert - 1].score == t.score &&
-                         goodTranscripts_[posToInsert - 1].matched >= t.matches)){
+                         goodTranscripts_[posToInsert - 1].matched < t.matches)) {
                         posToInsert = -1; // full, cannot insert
-                    }else {
-                        for (posToInsert = numGoodTranscripts_ - 1; posToInsert > 0; --posToInsert){
-                            if (goodTranscripts_[posToInsert - 1].score > t.score ||
+                    } else {
+                        for (posToInsert = numGoodTranscripts_ - 1; posToInsert > 0; --posToInsert) {
+                            if (goodTranscripts_[posToInsert - 1].score < t.score ||
                                 (goodTranscripts_[posToInsert - 1].score == t.score &&
-                                 goodTranscripts_[posToInsert - 1].matched >= t.matches)) {
+                                 goodTranscripts_[posToInsert - 1].matched < t.matches)) {
                                 goodTranscripts_[posToInsert] = std::move(goodTranscripts_[posToInsert - 1]);
                             } else {
                                 break;
@@ -1349,117 +1458,15 @@ namespace rna {
                 }
 
 
-                if(posToInsert != -1){
-                    Transcript &curT = goodTranscripts_[posToInsert];
-                    curT.chr = chrName;
-                    curT.strand = window.direction;
-                    curT.matched = t.matches;
-                    curT.unmatched = t.mismatches;
-                    curT.score = t.score;
-                    curT.exons.resize(t.exonCount);
-                    curT.sj.resize(t.exonCount - 1);
-                    // recover the exons and splice junctions, aligns no longer needed
-
-                    // add the last exon
-                    WindowAlign& lastWA = window.aligns[t.newAlignId];
-                    curT.exons[t.exonCount - 1] = Exon{
-                            lastWA.genomeStart,
-                            lastWA.length+ t.extendedLengthBackward,
-                            lastWA.readStart
-                    };
-
-                    int nowRawTranscriptIndex = t.previousTranscriptId;
-                    int rightAlignId = t.newAlignId;
-                    int alignPos = t.exonCount - 1; // for convenience
-                    while (nowRawTranscriptIndex != -1){
-
-                        const RawTranscript& nowRawT = nowRawTranscript_[nowRawTranscriptIndex];
-                        const WindowAlign& nowWindowAlign = window.aligns[nowRawT.newAlignId];
-                        const StitchingRecord& stitchingRecord = nowStitchingRecord_[getStitchingRecordIndex(
-                                nowRawT.newAlignId, rightAlignId, nAligns)];
-                        if (stitchingRecord.type == StitchingRecord::PERFECT_MATCH ||
-                            stitchingRecord.type == StitchingRecord::SAME_GAP) {
-                            // just extend the exon
-                            curT.exons[alignPos].length += stitchingRecord.latterExonLengthShift;
-                            curT.exons[alignPos].readStart -= stitchingRecord.latterExonLengthShift;
-                            curT.exons[alignPos].start -= stitchingRecord.latterExonLengthShift;
-                        } else {
-                            //add a new exon and a new splice junction
-                            --alignPos;
-                            curT.exons[alignPos].start = nowWindowAlign.genomeStart;
-                            curT.exons[alignPos].length = nowWindowAlign.length + stitchingRecord.formerExonLengthShift;
-                            curT.exons[alignPos].readStart = nowWindowAlign.readStart;
-                            curT.exons[alignPos + 1].start -= stitchingRecord.latterExonLengthShift;
-                            curT.exons[alignPos + 1].length += stitchingRecord.latterExonLengthShift;
-                            curT.exons[alignPos + 1].readStart -= stitchingRecord.latterExonLengthShift;
-                            curT.sj[alignPos] = stitchingRecord.stitchingType;
-                        }
-
-                        nowRawTranscriptIndex = nowRawT.previousTranscriptId;
-                        rightAlignId = nowRawT.newAlignId;
-                    }
-
-                    curT.exons[0].start -= t.extendedLengthForward;
-                    curT.exons[0].length += t.extendedLengthForward;
-                    curT.exons[0].readStart -= t.extendedLengthForward;
-                    curT.readStart = curT.exons[0].readStart;
-                    curT.genomeStart = curT.exons[0].start;
-                    curT.posInChr = curT.genomeStart - chrStart;
+                if (posToInsert != -1) {
+                    Transcript &nowT = goodTranscripts_[posToInsert];
+                    nowT = curT;
                 }
 
             }
         }
 
 
-    }
-
-
-    void StitchingManagement::finalizeTranscript(Transcript &t, const int chrId) {
-        //try to extend the transcript forward(5') and backward(3')
-        std::string chrName = genomeIndex_.genome->chromosomes_[chrId].name;
-        int64_t posInChr = t.genomeStart - genomeIndex_.genome->chromosomes_[chrId].start;
-        if (t.readStart > 0) {
-            // extend 5' end
-            int64_t extendLength = std::min(t.readStart, posInChr); // to ensure not to extend beyond current chromosome
-            t.readStart -= extendLength;
-            t.genomeStart -= extendLength;
-            t.exons[0].start -= extendLength;
-            t.exons[0].length += extendLength;
-            t.exons[0].readStart -= extendLength;
-            auto [matched, unmatched] = compareGenomeRead(
-                    genomeIndex_.genome->sequence_,
-                    read_->sequence[t.strand],
-                    t.genomeStart,
-                    t.readStart,
-                    extendLength
-            );
-            t.score += matched * MATCH_SCORE + unmatched * MISMATCH_PENALTY;
-            t.matched += matched;
-            t.unmatched += unmatched;
-            posInChr -= extendLength;
-        }
-        int64_t readEnd = t.exons.back().readStart + t.exons.back().length - 1;
-        int64_t genomeEnd = t.exons.back().start + t.exons.back().length - 1;
-        if (readEnd < read_->length - 1) {
-            // extend 3' end
-            int64_t extendLength = read_->length - readEnd - 1;
-            t.exons.back().length += extendLength;
-            t.aligns.back().length += extendLength;
-            auto [matched, unmatched] = compareGenomeRead(
-                    genomeIndex_.genome->sequence_,
-                    read_->sequence[t.strand],
-                    genomeEnd + 1,
-                    readEnd + 1,
-                    extendLength
-            );
-            t.score += matched * MATCH_SCORE + unmatched * MISMATCH_PENALTY;
-            t.matched += matched;
-            t.unmatched += unmatched;
-        }
-        t.score += int64_t(-0.25 * log2(t.exons.back().start + t.exons.back().length - t.exons[0].start));
-
-        t.chr = chrName;
-        t.posInChr = posInChr;
     }
 
 

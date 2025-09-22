@@ -5,41 +5,39 @@ namespace rna {
     // split into high quality splits
     void SeedMapping::splitRead() {
         splits.clear();
+
         size_t splitLen = 0;
         size_t maxLen = 0;
-        for (int dir = 0; dir < 2; ++dir) {
-            size_t len = readSeq[dir].length();
-            ReadPos i;
-            for (i = 0; i < len; ++i) {
-                if (readSeq[dir][i] != 'N' ) {
-                    splitLen++;
-                } else {
-                    if (splitLen >= config.minSplitLength) {
-                        splits.emplace_back(Split{ReadPos(i - splitLen), splitLen, dir});
-                    }
-                    maxLen = std::max(maxLen, splitLen);
-                    splitLen = 0;
-                }
-            }
-            //last split
-            if (splitLen >= config.minSplitLength) {
-                splits.emplace_back(Split{ReadPos(i - splitLen), splitLen, dir});
-            }
-            splitLen = 0;
 
+        size_t len = readSeq[0].length();
+        ReadPos i;
+        int iFragment = 0; // which fragment in paired-end
+        for (i = 0; i < len; ++i) {
+            if (readSeq[0][i] != 'N' && readSeq [0][i] != '#') {
+                splitLen++;
+            } else {
+
+                if (splitLen >= config.minSplitLength) {
+                    splits.emplace_back(Split{ReadPos(i - splitLen), splitLen, iFragment});
+                }
+                if (readSeq [0][i] == '#') iFragment++;
+                maxLen = std::max(maxLen, splitLen);
+                splitLen = 0;
+            }
         }
+        //last split
+        if (splitLen >= config.minSplitLength) {
+            splits.emplace_back(Split{ReadPos(i - splitLen), splitLen, iFragment});
+        }
+
+
     }
 
     void SeedMapping::alignRead() {
-        aligns.reserve(readSeq->length()/5);
         for (Split &split: splits) {
 
+            genomeIndex.alignRead(readSeq, split, aligns, alignNum, config.maxSeedPerRead);
 
-            std::vector<Align> splitAligns=genomeIndexPrefix.alignRead(readSeq[split.direction], split);
-             for (Align &align: splitAligns) {
-                if(align.rep  != 0) //which means the seed is invalid (i.e. repeat too many times)
-                    aligns.emplace_back(align);
-            }
         }
     }
 

@@ -4,64 +4,41 @@
 #include <mutex>
 #include "ReadAligner.h"
 #include "../utils/exceptions.h"
+#include "ReadFile.h"
 
 namespace rna{
+    class Parameters;
     class ReadAlignMultiThread {
-        std::mutex fileReadLock; // mutex for file reading
+        ReadFile readFile;
         std::mutex outputLock; // mutex for output operations
         std::mutex alignStatusLock; // mutex for alignment status output
         std::mutex alignProgressLock; // mutex for alignment progress output
         int threadNum;
-        int readChunkSize{100};
         std::vector<std::thread> threads;
         int readCount{0};
         std::vector<ReadAligner> readAligners;
-        std::ifstream file;
-        std::ofstream outFile;
-        std::ofstream alignStatusFile;
+        char outputAlignBuffer[1048576]; //buffer for output alignment
+        FILE* outFile;
+        std::string outDir;
+        std::ofstream logFile;
         std::ofstream alignProgressFile;
+
+        StitchingConfig stitchConfig;
+        StitchingScoreConfig stitchingScoreConfig;
+        SeedMappingConfig seedMappingConfig;
 
         void singleThreadProcess(ReadAligner&r) {
 
-            r.processReadFile(file,outFile,alignStatusFile,alignProgressFile, outputLock, alignStatusLock,alignProgressLock,fileReadLock,readCount);
+            r.processReadFile(readFile, outFile, logFile, alignProgressFile, outputLock, alignStatusLock, alignProgressLock, readCount);
         }
     public:
-        void processReadFile(const std::string& filename, int tNum,GenomeIndexPrefix& gInPre,bool partialOutput ) {
-            threadNum = tNum;
-            file= std::ifstream (filename);
-            outFile = std::ofstream (filename+ ".sam");
-            alignStatusFile = std::ofstream (filename + ".alignTime");
-            alignProgressFile = std::ofstream (filename + ".progress");
-            if (!file) {
-                throw RNAException(
-                        ExceptionType::FILE_NOT_FOUND,
-                        "Cannot open read file: " + filename
-                );
-            }
-
-            for (int i = 0; i<threadNum;++i){
-                readAligners.emplace_back(gInPre,i);
-                readAligners[i].partialOutput = partialOutput;
-
-            }
-            for (int i = 0; i < threadNum; ++i) {
-                auto &r = readAligners[i];
-                threads.emplace_back([this, &r ] { singleThreadProcess(r); });
-            }
-
-            for (auto &t: threads) {
-                if (t.joinable()) {
-                    t.join();
-                }
-            }
-            threads.clear();
-            file.close();
-            outFile.close();
-            alignStatusFile.close();
-            alignProgressFile.close();
-
+        ReadAlignMultiThread(Parameters& P);
+        void setConfig(const StitchingConfig& scfg, const StitchingScoreConfig& sscfg, const SeedMappingConfig& smcfg) {
+            stitchConfig = scfg;
+            stitchingScoreConfig = sscfg;
+            seedMappingConfig = smcfg;
         }
-
+        void processReadFile(int tNum, GenomeIndex& gInPre, bool partialOutput );
     };
 }
 

@@ -1,34 +1,44 @@
 #ifndef RNAALIGNREFACTORED_SEEDMAPPING_H
 #define RNAALIGNREFACTORED_SEEDMAPPING_H
-#include "../genome/GenomeIndex.h"
+
 #include "../utils/types.h"
-#include "../genome/GenomeIndexPrefix.h"
+#include "../genome/GenomeIndex.h"
 #include <vector>
 #include <algorithm>
 
 namespace rna {
     struct SeedMappingConfig {
-        size_t minSplitLength = 20;
-
+        int minSplitLength = 20;
+        int maxSeedPerRead = 1000;
     };
     class SeedMapping {
     private:
 
-        const GenomeIndexPrefix& genomeIndexPrefix;
+        const GenomeIndex& genomeIndex;
         SeedMappingConfig config;
         ReadPtr read;
         std::string readSeq[2];
         std::vector<Split> splits;
     public:
-        std::vector<Align> aligns;
-        SeedMapping(const GenomeIndexPrefix& gInPre, const SeedMappingConfig& cfg) : genomeIndexPrefix(gInPre), config(cfg) {}
+        Align* aligns;
+        int alignNum;
+        SeedMapping(const GenomeIndex& gInPre, const SeedMappingConfig& cfg) : genomeIndex(gInPre), config(cfg) {
+            aligns = new Align[config.maxSeedPerRead];
+            alignNum = 0;
+        }
+        ~SeedMapping(){
+            delete []aligns;
+        }
         void alignRead();
         void splitRead();
         void clear() {
-            aligns.clear();
+            alignNum = 0;
             splits.clear();
         }
         void processRead(ReadPtr& r);
+        void setConfig(const SeedMappingConfig& cfg) {
+            config = cfg;
+        }
 
 
     };

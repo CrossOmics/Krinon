@@ -9,7 +9,7 @@ namespace rna {
 
 
 
-    void SuffixArrayNew::build(const std::string& seq, bool skipInvalidSuffixes){
+    void SuffixArray::build(const std::string& seq, bool skipInvalidSuffixes,size_t reservedLength){
         const int64_t n = seq.length();
         text_.resize(n , -1);
         for (size_t i = 0; i < n;++i){
@@ -19,29 +19,21 @@ namespace rna {
 
         fullLength_ = n;
 
-        size_t* sa = suffixArray(text_);
+        size_t* rawSA = suffixArray(text_,reservedLength);
         size_t maxValue = n - 1;
         uint32_t bitsNeeded = 0;
         while (maxValue > 0) {
             bitsNeeded++;
             maxValue >>= 1;
         }
-        sa_.buildFromArray(sa, bitsNeeded, n);
-        rk_.init(n, bitsNeeded);
+        sa_.buildFromArray(rawSA, bitsNeeded, n);
+        sa_.setReservedInd(reservedLength);
+
+
+        size_t* sa = rawSA + reservedLength;
         size_t validCount = 0;
-        lcp_.init(n, 16);
-        lcp_.set(0, 0);
-        int64_t k = 0;
-        for (size_t i = 0; i < n; ++i) rk_.set(sa[i], i-1);
-        for (int64_t i = 0; i < fullLength_; ++i) {
-            size_t j = rk_.get(i);
-            if (j == 0) continue;
-            if (k > 0) k--;
-            while (text_[i + k] == text_[sa[j] + k]) k++;
-            if(k < std::numeric_limits<uint16_t>::max()) lcp_.set(j,k);
-            else lcp_.set(j,std::numeric_limits<uint16_t>::max());
-        }
-        rk_.clear();
+
+
         if (skipInvalidSuffixes) {
             for (size_t i = 1; i <= n; ++i) {
                 if (text_[sa[i]] != 5) {
@@ -54,7 +46,6 @@ namespace rna {
             for (size_t i = 1; i <= n; ++i) {
 
                 sa_.set(i-1, sa[i]);
-                rk_.set(sa[i], i - 1);
 
             }
             sa_.setLength(n);
@@ -62,16 +53,18 @@ namespace rna {
 
 
 
+
+
     }
 
-    int SuffixArrayNew::lmsStrCmp(const size_t* s, size_t p1, size_t p2, size_t len) {
+    int SuffixArray::lmsStrCmp(const size_t* s, size_t p1, size_t p2, size_t len) {
         for (size_t i = 0; i < len; ++i) {
             if (s[p1 + i] != s[p2 + i]) return s[p1 + i] < s[p2 + i] ? -1 : 1;
         }
         return 0;
     }
 
-    void SuffixArrayNew::renamePat(size_t* pat, size_t* sa,size_t patLen,size_t saLen) {
+    void SuffixArray::renamePat(size_t* pat, size_t* sa, size_t patLen, size_t saLen) {
         for (size_t i = 0; i < saLen; ++i) sa[i] = 0;
         for (size_t i = 0; i < patLen; ++i) ++sa[pat[i]];
         for (size_t i = 1; i < saLen; ++i) sa[i] += sa[i - 1];
@@ -92,7 +85,7 @@ namespace rna {
         }
     }
 
-    size_t SuffixArrayNew::sortLmsChar(size_t* pat, size_t* sa,size_t patLen,size_t saLen) {
+    size_t SuffixArray::sortLmsChar(size_t* pat, size_t* sa, size_t patLen, size_t saLen) {
         for (size_t i = 0; i < saLen; ++i) sa[i] = EMPTY;
 
         bool lastType = true;
@@ -162,7 +155,7 @@ namespace rna {
         return lmsCnt;
     }
 
-    void SuffixArrayNew::sortLmsSubstr(size_t* pat, size_t* sa,size_t patLen,size_t saLen) {
+    void SuffixArray::sortLmsSubstr(size_t* pat, size_t* sa, size_t patLen, size_t saLen) {
         inducedSort(pat, sa,patLen,saLen);
 
         size_t lmsCnt = 0;
@@ -202,7 +195,7 @@ namespace rna {
         for (size_t i = 0; i < patLen - lmsCnt; ++i ) sa[i] = EMPTY;
     }
 
-    bool SuffixArrayNew::constructPat1(size_t* pat, size_t* sa, size_t lmsCnt, size_t patLen,size_t saLen) {
+    bool SuffixArray::constructPat1(size_t* pat, size_t* sa, size_t lmsCnt, size_t patLen, size_t saLen) {
         size_t rank = 0;
         size_t prevLen = 1;
         bool dup = false;
@@ -238,8 +231,8 @@ namespace rna {
         return dup;
     }
 
-    void SuffixArrayNew::sortLmsSuf(size_t* pat, size_t* sa,size_t patLen,size_t saLen,
-                    size_t lmsCnt, bool dup) {
+    void SuffixArray::sortLmsSuf(size_t* pat, size_t* sa, size_t patLen, size_t saLen,
+                                 size_t lmsCnt, bool dup) {
 
         size_t* pat1 = sa;
         size_t pat1Len = lmsCnt;
@@ -286,7 +279,7 @@ namespace rna {
         }
     }
 
-    void SuffixArrayNew::inducedSort(size_t *pat, size_t *sa, size_t patLen, size_t saLen) {
+    void SuffixArray::inducedSort(size_t *pat, size_t *sa, size_t patLen, size_t saLen) {
 
         bool lastType = true;
         for (int64_t j = patLen - 2; j >= 0; --j) {
@@ -453,7 +446,7 @@ namespace rna {
         }
     }
 
-    void SuffixArrayNew::computeSuffixArray(size_t *pat, size_t *sa, size_t patLen, size_t saLen) {
+    void SuffixArray::computeSuffixArray(size_t *pat, size_t *sa, size_t patLen, size_t saLen) {
         renamePat(pat, sa, patLen, saLen);
         size_t lmsCnt = sortLmsChar(pat, sa, patLen, saLen);
         sortLmsSubstr(pat, sa, patLen, saLen);
@@ -462,7 +455,7 @@ namespace rna {
         inducedSort(pat, sa, patLen, saLen);
     }
 
-    size_t* SuffixArrayNew::suffixArray(const std::vector<uint8_t> &pat) {
+    size_t* SuffixArray::suffixArray(const std::vector<uint8_t> &pat,size_t reservedLength) {
         size_t n = pat.size() + 1;
         size_t* p = new size_t[n];
         for (size_t i = 0; i < n - 1; ++i) {
@@ -472,9 +465,42 @@ namespace rna {
 
         size_t saLen = std::max(n, (size_t) 256);
 
-        size_t* sa = new size_t[saLen];
+        auto* rawSA = new size_t[saLen + reservedLength];
+        memset(rawSA, 0, (saLen + reservedLength) * sizeof(size_t));
+        size_t* sa = rawSA + reservedLength;
+
         computeSuffixArray(p, sa, n, saLen);
         delete[] p;
-        return sa;
+        return rawSA;
+    }
+
+    inline bool comp(const std::string_view &s1, const std::string_view &s2) {
+        size_t len = std::min(s1.length(), s2.length());
+        for (size_t i = 0; i < len; ++i) {
+            if (s1[i] != s2[i]) {
+                if (s1[i] == 'N' || s1[i] == '#') return false;
+                if (s2[i] == 'N' || s2[i] == '#') return true;
+                return s1[i] < s2[i];
+            }
+        }
+        return s1.length() > s2.length();
+    }
+
+    int64_t SuffixArray::findInsertPosition(const std::string_view &pattern , const std::string_view& genomeSeq  )const {
+        // binary search to find the insert position of pattern in the suffix array
+        int64_t left = 0;
+        int64_t right = sa_.length();
+        int64_t mid ;
+        while (right - left > 1) {
+            mid = (left + right) / 2;
+            size_t midPos = sa_.get(mid);
+            std::string_view midStr = genomeSeq.substr(midPos);
+            if (comp(pattern, midStr)) {
+                right = mid;
+            } else {
+                left = mid;
+            }
+        }
+        return right;
     }
 }

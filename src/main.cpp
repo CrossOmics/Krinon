@@ -1,6 +1,7 @@
-#include "genome/GenomeIndex.h"
+
 #include "readAlign/ReadAligner.h"
 #include "readAlign/ReadAlignMultiThread.h"
+#include "utils/Parameters.h"
 
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
@@ -19,69 +20,39 @@ int main(int argc, char* argv[]){
     // these are the most important colums and are expected to be right
     // <read_file>.alignTime:
     // a timestamp file, each line is the time (us) taken to align and stitch a read
-    std::string genomeFile = "test.fa";
-    std::string readFile = "test.fastq";
-    std::string mode = "both";
     std::string outputMode = "all"; // "all" or "test" in test mode, only output the result and time of first 10000 reads
-    //mode = "both";
-    mode = "readAlign";
-    if (argc == 3){
-        genomeFile = argv[1];
-        readFile = argv[2];
-    }
 
-    if (argc == 5){
-        genomeFile = argv[1];
-        readFile = argv[2];
-        mode = argv[3];
-        outputMode = argv[4];
-    }
-    if(mode == "both" || mode == "genomeGenerate"){
-        rna::Genome g(genomeFile);
-        rna::GenomeIndexPrefix genomeIndexPrefix(g);
-        //These parameter controls the size of the k-mer index
+    rna::Parameters P;
+    P.process(argc,argv);
+    std::string mode = P.mode;
+    if (mode.empty()) {
+        std::cout << "Please specify the mode: GenomeGenerate, ReadAlign, both or test" << std::endl;
 
-        //Must modify the parameters below !!!
-        genomeIndexPrefix.setConfig(rna::GenomeIndexPrefixConfig{
-                .kMerSize = 10, // for large genome, suggest using 14-mer
-                .extendLength = 2, // for large genome, suggest using 4
-                .extendIndexSize = 17, // (1 << (2 * extendLength)) + 1 , suggest using 257
-                .minExtendRep = 1000000, // minimum number of repetitions for extension ,
-                // suggest using 100 or more to prevent from creating too many extend mer
-                .maxLayer = 3, // max number of the depth of the extension, to control the size of the index
-                .twoDirections = true
-        });
-        genomeIndexPrefix.build();
-        genomeIndexPrefix.write("test");
+        std::cout << P.program;
+        exit(0);
     }
-    if(mode == "both" || mode == "readAlign"){
-        rna::GenomeIndexPrefix genomeIndexPrefix;
-        genomeIndexPrefix.load("test");
-        /*rna::ReadAligner aligner(genomeIndexPrefix);
-        if (outputMode == "test") aligner.partialOutput = true;
-        aligner.processReadFile(readFile); // the read file in fastq format*/
-        rna::ReadAlignMultiThread readAlignMultiThread;
-        readAlignMultiThread.processReadFile(readFile,4,genomeIndexPrefix,outputMode == "test");
-    }
-    if (mode == "test"){
-        //without write & load
-        rna::Genome g(genomeFile);
-        rna::GenomeIndexPrefix genomeIndexPrefix(g);
-        //These parameter controls the size of the k-mer index
+    if (mode == "GenomeGenerate" || mode == "both") {
+        rna::Genome g;
+        g.binSize = P.genomeBinSize;
+        g.loadFromFasta(P.genomeFile);
+        rna::GenomeIndex genomeIndex(g);
+        genomeIndex.setConfig(P.genomeIndexConfig);
+        genomeIndex.build();
 
-        //Must modify the parameters below !!!
-        genomeIndexPrefix.setConfig(rna::GenomeIndexPrefixConfig{
-                .kMerSize = 10, // for large genome, suggest using 14-mer
-                .extendLength = 2, // for large genome, suggest using 4
-                .extendIndexSize = 17, // (1 << (2 * extendLength)) + 1 , suggest using 257
-                .minExtendRep = 1000000, // minimum number of repetitions for extension ,
-                // suggest using 100 or more to prevent from creating too many extend mer
-                .maxLayer = 3, // max number of the depth of the extension, to control the size of the index
-                .twoDirections = true
-        });
-        genomeIndexPrefix.build();
-        rna::ReadAlignMultiThread readAlignMultiThread;
-        readAlignMultiThread.processReadFile(readFile,4,genomeIndexPrefix,outputMode == "test");
+        if (!P.gtfFile.empty()) {
+            rna::GTF gtf(P.outLogFile);
+            gtf.loadGTF(P.gtfFile, *genomeIndex.genome);
+            gtf.fillSjdbLoci("./", *genomeIndex.genome);
+            gtf.insertJunctions(*genomeIndex.genome, genomeIndex);
+        }
+        genomeIndex.write(P.genomeGenerateFileStoreDir);
+    }
+    if (mode == "ReadAlign" || mode == "both") {
+        rna::GenomeIndex genomeIndex;
+        genomeIndex.setConfig(P.genomeIndexConfig);
+        genomeIndex.load(P.genomeGenerateFileStoreDir);
+        rna::ReadAlignMultiThread readAlignMultiThread(P);
+        readAlignMultiThread.processReadFile( P.threads, genomeIndex, false);
     }
 
 

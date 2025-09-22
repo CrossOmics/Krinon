@@ -2,6 +2,7 @@
 namespace rna {
 
     void PackedArray::set(uint64_t index, uint64_t value) {
+            index += reservedInd;
             uint64_t b = index * wordLengthBits_;
             uint64_t B = b / 64;
             uint64_t S = b % 64;
@@ -12,15 +13,17 @@ namespace rna {
                 *(wordPtr + 1) = (*(wordPtr + 1) & ~(bitMask_ >> (64 - S))) | (value >> (64 - S));
             }
     }
-    void PackedArray::init(uint64_t length, uint32_t wordLengthBits) {
+    void PackedArray::init(uint64_t length, uint32_t wordLengthBits, size_t reservedLength) {
         length_ = length;
+        reservedInd = reservedLength;
         wordLengthBits_ = wordLengthBits;
-        dataLength = (length * wordLengthBits + 63) / 64; // calculate the number of 32-bit integers needed
+        dataLength = ((reservedLength + length) * wordLengthBits + 63) / 64; // calculate the number of 32-bit integers needed
         data_ = new uint64_t[dataLength]();
         wordCompLength_ = 64 - wordLengthBits_;
         bitMask_ = (~0ULL) >> wordCompLength_;
     }
     uint64_t PackedArray::get(uint64_t index) const {
+        index += reservedInd;
         uint64_t b = index * wordLengthBits_;
         uint64_t B = b / 64;
         uint64_t S = b % 64;
@@ -37,6 +40,7 @@ namespace rna {
             delete[] data_;
             data_ = nullptr;
         }
+        reservedInd = 0;
         wordLengthBits_ = 0;
         wordCompLength_ = 0;
         bitMask_ = 0;
@@ -44,15 +48,30 @@ namespace rna {
         dataLength = 0;
     }
     void PackedArray::writeToFile(std::ofstream &out, std::ofstream &logOut) const {
-        logOut<< wordLengthBits_ << " " << length_ << " " << dataLength << "\n";
+        logOut<< wordLengthBits_ << " " << length_ << " " << dataLength <<" "<< reservedInd<< "\n";
         out.write(reinterpret_cast<const char*>(data_), dataLength * sizeof(uint64_t));
     }
     void PackedArray::loadFromFile(std::ifstream &in, std::ifstream &logIn) {
-        logIn >> wordLengthBits_ >> length_ >> dataLength;
+        logIn >> wordLengthBits_ >> length_ >> dataLength >> reservedInd;
         wordCompLength_ = 64 - wordLengthBits_;
         bitMask_ = (~0ULL) >> wordCompLength_;
         delete[] data_;
         data_ = new uint64_t[dataLength];
         in.read(reinterpret_cast<char*>(data_), dataLength * sizeof(uint64_t));
+    }
+
+    void PackedArray::buildFromPackedArrayExtendForward(PackedArray &other, uint64_t forwardExtendLength){
+        //build a new PackedArray by extending another one forward
+        //reuse the data of the other one
+        //the function is mainly used for inserting new sj sequences to the suffix array
+
+        reservedInd = other.reservedInd - forwardExtendLength;
+        length_ = other.length_ + forwardExtendLength;
+        data_ = other.data_;
+
+        wordLengthBits_ = other.wordLengthBits_;
+        wordCompLength_ = other.wordCompLength_;
+        bitMask_ = other.bitMask_;
+        dataLength = other.dataLength;
     }
 }

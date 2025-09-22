@@ -7,23 +7,46 @@
 #include <cstdint>
 #include "../utils/types.h"
 namespace rna{
+
+    struct GenomeSjdbRecord {
+        size_t start;
+        size_t end;
+        uint8_t motif;
+        uint8_t shiftLeft;
+        uint8_t shiftRight;
+        uint8_t strand;
+    };
+
     class Genome{
     private:
 
         void buildPosToChromosomeMap();
 
-        static constexpr size_t INDEX_SHIFT = 18;
         static constexpr char SPACING_CHAR = '#';   // Character used for spacing in the sequence
 
     public:
+        int binSize = 18;
+
+
         struct Chromosome {
             std::string name;
             GenomePos start;
             GenomePos length;
         };
         std::string sequence_;
+        size_t originalGenomeLength;
         std::vector<Chromosome> chromosomes_;
-        std::map<GenomePos,int64_t> chromosomeMap_;
+        std::map<GenomePos,int64_t> chromosomeStartMap_;
+        std::map<std::string,int64_t> chromosomeNameToIndex_;//todo move into class GTF
+
+
+
+        int64_t sjdbNum{0};
+        std::vector<GenomeSjdbRecord> sjdb;
+        std::vector<int64_t> sjDonorStart_;
+        std::vector<int64_t> sjAcceptorStart_;
+
+
         Genome();
         explicit Genome(const std::string& filename);
         void loadFromFasta(const std::string& filename);

@@ -6,14 +6,14 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(RNAAlignRefactored   main.cpp
                                     genome/Genome.cpp
                                     genome/GenomeIndex.cpp
-                                    genome/GenomeIndexPrefix.cpp
                                     genome/SuffixArray.cpp
-                                    genome/SuffixAutomatonKMerBuilder.cpp
                                     genome/SJDB.cpp
                                     readAlign/ReadAligner.cpp
                                     readAlign/SeedMapping.cpp
                                     readAlign/StitchingManagement.cpp
                                     readAlign/ReadAlignMultiThread.cpp
-                                    genome/WindowScanningKMerBuilder.cpp
+                                    readAlign/ReadFile.cpp
                                     utils/PackedArray.cpp
+                                    utils/argparse.hpp
+                                    utils/Parameters.cpp
                                     )

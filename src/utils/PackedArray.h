@@ -8,32 +8,37 @@
 namespace rna {
     class PackedArray {
     private:
+
         uint64_t *data_;
         uint32_t wordLengthBits_;
         uint32_t wordCompLength_;
         uint64_t bitMask_;
         uint64_t length_;//number of elements
-        uint64_t dataLength;//length of the array (i.e. data)
+        uint64_t dataLength;//length of the array to store the elements (i.e. data)
+        uint64_t reservedInd;
     public:
-        PackedArray() : data_(nullptr), wordLengthBits_(0), length_(0), dataLength(0) {};
+        bool isOwner{true}; // is the Owner of data_
+        PackedArray() : data_(nullptr), wordLengthBits_(0), length_(0), dataLength(0), reservedInd(0) {};
 
         ~PackedArray() {
-            delete[] data_;
+            if(isOwner) delete[] data_;
         }
 
-        PackedArray(uint64_t length, uint32_t wordLengthBits)
-                : length_(length), wordLengthBits_(wordLengthBits) {
-            dataLength = (length * wordLengthBits + 63) / 64; // calculate the number of 32-bit integers needed
-            data_ = new uint64_t[dataLength]();
-            wordCompLength_ = 64 - wordLengthBits_;
-            bitMask_ = (~0ULL) >> wordCompLength_;
-        }
 
-        void init(uint64_t length, uint32_t wordLengthBits);
+        void init(uint64_t length, uint32_t wordLengthBits,size_t reservedLength = 0);
+
+        inline int getWordLengthBits() const {
+            return wordLengthBits_;
+        }
 
         inline void setLength(uint64_t length) {
             length_ = length;
-            dataLength = (length * wordLengthBits_ + 63) / 64; // recalculate the number of 32-bit integers needed
+            dataLength = ((length+reservedInd) * wordLengthBits_ + 63) / 64; // recalculate the number of 32-bit integers needed
+        }
+
+        inline void setReservedInd(uint64_t reservedInd){
+            this->reservedInd = reservedInd;
+            dataLength = ((length_+reservedInd) * wordLengthBits_ + 63) / 64; // recalculate the number of 32-bit integers needed
         }
 
         void buildFromArray(uint64_t *array, uint32_t wordLengthBits, uint64_t length) {
@@ -43,6 +48,8 @@ namespace rna {
             bitMask_ = (~0ULL) >> wordCompLength_;
             data_ = array;
         }
+
+        void buildFromPackedArrayExtendForward(PackedArray &other, uint64_t forwardExtendLength);
 
         void set(uint64_t index, uint64_t value);
 

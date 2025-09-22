@@ -4,6 +4,9 @@
 #include <filesystem>
 #include <chrono>
 #include <mutex>
+#include <sstream>
+#include "ReadFile.h"
+#include <iomanip>
 namespace rna {
     bool ReadAligner::loadReadFromFastq(std::ifstream& s,std::mutex& readLock) {
         std::array<std::string, 4> lines;
@@ -30,7 +33,8 @@ namespace rna {
         }
 
         read = std::make_shared<Read>();
-        read->name = lines[0].substr(1);  // Remove '@'
+        std::istringstream nameStream(lines[0].substr(1));
+        nameStream >>read->name;
         read->sequence[0] = lines[1];
         read->sequence[1] = lines[1];
         std::reverse(read->sequence[1].begin(), read->sequence[1].end());
@@ -58,72 +62,98 @@ namespace rna {
 
         return true;
     }
-    void ReadAligner::processReadFile(std::ifstream& file,std::ofstream& outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,std::mutex& readFileLock,int& totalReadsProcessed) {
+    void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
+
+        std::stringstream outputBuffer((std::string()));
+        int outputBufferSize = 500;
+        int outputBufferCnt = 0;
 
 
-
-
-        int64_t totalAlignTime = 0;
-        int64_t totalStitchTime = 0;
         // count the number of reads processed in this call
         auto AligningStartTime = std::chrono::high_resolution_clock::now();
+        auto previousProgressReportTime = AligningStartTime;
 
-        while (loadReadFromFastq(file,readFileLock)) {
 
+        while (file.loadReadFromFastq(read)) {
+
+            bool isUnique = false;
+            bool isMulti = false;
             ++readCount;
             auto startTime = std::chrono::high_resolution_clock::now();
             seedMapping->processRead(read);
 
             auto alignEndTime = std::chrono::high_resolution_clock::now();
-            stitchingManagement->processAlignments(seedMapping->aligns,read);
-            auto stitchEndTime = std::chrono::high_resolution_clock::now();
+
+            stitchingManagement->processAlignments(seedMapping->aligns,seedMapping->alignNum,read);
+
+            if (stitchingManagement->numGoodTranscripts_ == 1) {
+                isUnique = true;
+            } else if (stitchingManagement->numGoodTranscripts_ > 1){
+                isMulti = true;
+            }
 
 
 
-            outputLock.lock();
-            totalReadsProcessed++;
+
             if(!partialOutput || totalReadsProcessed < 10000){
                 if (stitchingManagement->status == StitchingManagement::SUCCESS){
+
                     for (int j = 0; j < stitchingManagement->numGoodTranscripts_; ++j) {
                         auto &t = stitchingManagement->goodTranscripts_[j];
-                        outFile << SAMEntry(t, *read) << '\n';
+                        t.isPaired = file.readType == ReadFile::paired;
+                        std::string s = t.outputSam(*read, stitchingManagement->numGoodTranscripts_);
+                        //fprintf(outFile,s.c_str(),s.length());
+                        outputBuffer << s;
+                        ++outputBufferCnt;
+                        if (outputBufferCnt >= outputBufferSize) {
+                            outputLock.lock();
+                            fprintf(outFile, outputBuffer.str().c_str(), outputBuffer.str().length());
+                            outputLock.unlock();
+                            outputBuffer.str(std::string());
+                            outputBufferCnt = 0;
+                        }
                     }
                 }
             }
-            outputLock.unlock();
+
 
             stitchingManagement->clear();
+            auto stitchEndTime = std::chrono::high_resolution_clock::now();
 
-
-
-            alignStatusLock.lock();
-            if(!partialOutput || totalReadsProcessed < 10000){
-                alignStatusFile << read->name << '\t' << "AlignTime:\t"
-                                << std::chrono::duration_cast<std::chrono::microseconds>(alignEndTime - startTime).count() << " StitchTime:\t"
-                                << std::chrono::duration_cast<std::chrono::microseconds>(stitchEndTime - alignEndTime).count() << '\n';
-            }
-            alignStatusLock.unlock();
 
 
             seedMapping->clear();
 
 
 
-
-            totalAlignTime += std::chrono::duration_cast<std::chrono::microseconds>(alignEndTime - startTime).count();
-            totalStitchTime += std::chrono::duration_cast<std::chrono::microseconds>(stitchEndTime - alignEndTime).count();
             alignProgressLock.lock();
-            if ((!partialOutput) ||  totalReadsProcessed % 1000000 == 0){
-                auto nowTime = std::chrono::high_resolution_clock::now();
-                alignProgressFile << "Thread: " << threadId  << "\t";
-                alignProgressFile << "Current time:" << std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count() << " s\t";
-                alignProgressFile << "Current reads processed: " << readCount  << '\t';
-                alignProgressFile << "Average align time: " << totalAlignTime/readCount << " us\t";
-                alignProgressFile << "Average stitch time: " << totalStitchTime/readCount << " us\n";
-
+            totalReadsProcessed++;
+            file.totalReadCount ++;
+            if (isUnique) file.uniqueReadCount++;
+            if (isMulti) file.multiReadCount++;
+            auto nowTime = std::chrono::high_resolution_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count()){
+                previousProgressReportTime = nowTime;
+                auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
+                alignProgressFile << "Current time:" << totalTime << "s\t";
+                alignProgressFile << "Total reads processed (all threads): " << totalReadsProcessed << '\t';
+                alignProgressFile << "Speed:" <<std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0 << "r/h\t";
             }
+
             alignProgressLock.unlock();
         }
+
+        if (outputBufferCnt > 0) {
+            outputLock.lock();
+            fprintf(outFile, outputBuffer.str().c_str(), outputBuffer.str().length());
+            outputLock.unlock();
+            outputBuffer.str(std::string());
+            outputBufferCnt = 0;
+        }
+
+
+
+
 
 
 
