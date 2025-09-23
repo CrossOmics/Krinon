@@ -50,10 +50,10 @@ namespace rna {
         std::array<std::string, 4> lines1;
         std::array<std::string, 4> lines2;
 
-        fileLock.lock();
+
         for (int i = 0; i < 4; ++i) {
             if (!(std::getline(readFile, lines1[i]))) {
-                fileLock.unlock();
+
                 return false;
             }
             if (lines1[i][lines1[i].size() - 1] == '\r') {
@@ -63,7 +63,7 @@ namespace rna {
         if (readType == paired) {
             for (int i = 0; i < 4; ++i) {
                 if (!(std::getline(readFile2, lines2[i]))) {
-                    fileLock.unlock();
+
                     return false;
                 }
                 if (lines2[i][lines2[i].size() - 1] == '\r') {
@@ -71,7 +71,7 @@ namespace rna {
                 }
             }
         }
-        fileLock.unlock();
+
 
         read = std::make_shared<Read>();
         std::istringstream nameStream(lines1[0].substr(1));
@@ -139,5 +139,19 @@ namespace rna {
         return true;
 
 
+    }
+
+    int ReadFile::loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize){
+        int count = 0;
+        fileLock.lock();
+        for(int i = 0; i < chunkSize; ++i){
+            if(!loadReadFromFastq(reads[i])){
+                fileLock.unlock();
+                return count;
+            }
+            ++count;
+        }
+        fileLock.unlock();
+        return count;
     }
 }

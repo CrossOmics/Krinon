@@ -35,6 +35,7 @@ namespace rna {
         };
         void openFiles(const std::string& filename1,const std::string& filename2="");
         bool loadReadFromFastq(ReadPtr& read);
+        int loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize);
         void closeFiles();
     };
 }

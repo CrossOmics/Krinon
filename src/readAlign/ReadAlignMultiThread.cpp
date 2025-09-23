@@ -8,7 +8,7 @@ namespace rna {
             std::filesystem::create_directories(P.outPutDir);
         }
         outDir = P.outPutDir;
-        outFile = fopen((P.outPutDir+"outAligned.out.sam").c_str(),"w");
+        outFile = fopen((P.outPutDir+"/outAligned.out.sam").c_str(),"w");
     }
     void ReadAlignMultiThread::processReadFile(int tNum, rna::GenomeIndex &gInPre,
                                                bool partialOutput) {
@@ -20,10 +20,12 @@ namespace rna {
         setvbuf(outFile,outputAlignBuffer,_IOFBF,sizeof outputAlignBuffer);
         logFile = std::ofstream (outDir + "outLog.out");
         alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
+        alignProgressFile << "v4\n";
 
 
         for (int i = 0; i<threadNum;++i){
-            readAligners.emplace_back(gInPre,i);
+
+            readAligners.push_back(ReadAligner(gInPre,i));
             readAligners[i].partialOutput = partialOutput;
             readAligners[i].setConfig(stitchConfig, stitchingScoreConfig, seedMappingConfig);
         }

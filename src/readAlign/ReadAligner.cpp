@@ -8,59 +8,22 @@
 #include "ReadFile.h"
 #include <iomanip>
 namespace rna {
-    bool ReadAligner::loadReadFromFastq(std::ifstream& s,std::mutex& readLock) {
-        std::array<std::string, 4> lines;
+    bool ReadAligner::loadReadFromFastq(ReadFile& file) {
+        if(queueEmpty) {
+            nowReadInd = 0;
+            int cnt = file.loadReadChunkFromFastq(readBufferQueue, inputBufferSize);
 
-        readLock.lock();
-        for (int i = 0; i < 4; ++i) {
-            if (!(std::getline(s, lines[i]))) {
-                readLock.unlock();
+            if (cnt == 0) {
                 return false;
             }
-            if (lines[i][lines[i].size() - 1] == '\r') {
-                lines[i].pop_back(); // Windows file in linux
-            }
+            nowQueueSize = cnt;
+            queueEmpty = false;
         }
-        readLock.unlock();
-
-        // Validate FASTQ format
-        if (lines[0].empty() || lines[0][0] != '@' ||
-            lines[2].empty() || lines[2][0] != '+') {
-            throw RNAException(
-                    ExceptionType::FORMAT_ERROR,
-                    "Invalid FASTQ format"
-            );
-        }
-
-        read = std::make_shared<Read>();
-        std::istringstream nameStream(lines[0].substr(1));
-        nameStream >>read->name;
-        read->sequence[0] = lines[1];
-        read->sequence[1] = lines[1];
-        std::reverse(read->sequence[1].begin(), read->sequence[1].end());
-        for (char &c: read->sequence[1]) {
-            switch (c) {
-                case 'A':
-                    c = 'T';
-                    break;
-                case 'T':
-                    c = 'A';
-                    break;
-                case 'C':
-                    c = 'G';
-                    break;
-                case 'G':
-                    c = 'C';
-                    break;
-                default:
-                    c = 'N';
-                    break;
-            }
-        }
-        read->length = lines[1].length();
-        read->quality = lines[3];
-
+        read = readBufferQueue[nowReadInd];
+        ++nowReadInd;
+        if(nowReadInd >= nowQueueSize) queueEmpty = true;
         return true;
+
     }
     void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
 
@@ -74,7 +37,7 @@ namespace rna {
         auto previousProgressReportTime = AligningStartTime;
 
 
-        while (file.loadReadFromFastq(read)) {
+        while (loadReadFromFastq(file)) {
 
             bool isUnique = false;
             bool isMulti = false;
