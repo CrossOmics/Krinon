@@ -132,12 +132,12 @@ namespace rna {
             if (isUnique) file.uniqueReadCount++;
             if (isMulti) file.multiReadCount++;
             auto nowTime = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count()){
+            if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count() >= 60){
                 previousProgressReportTime = nowTime;
                 auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
                 alignProgressFile << "Current time:" << totalTime << "s\t";
                 alignProgressFile << "Total reads processed (all threads): " << totalReadsProcessed << '\t';
-                alignProgressFile << "Speed:" <<std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0 << "r/h\t";
+                alignProgressFile << "Speed:" <<std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0 << "r/h\n";
             }
 
             alignProgressLock.unlock();
