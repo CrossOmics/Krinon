@@ -137,7 +137,7 @@ namespace rna {
                 auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
                 alignProgressFile << "Current time:" << totalTime << "s\t";
                 alignProgressFile << "Total reads processed (all threads): " << totalReadsProcessed << '\t';
-                alignProgressFile << "Speed:" <<std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0 << "r/h\n";
+                alignProgressFile << "Speed:" <<std::fixed << std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0/1000000 << "Million r/h\n";
             }
 
             alignProgressLock.unlock();
