@@ -28,12 +28,12 @@ namespace rna {
     }
 
     void ReadFile::openFiles(const std::string &filename1, const std::string &filename2) {
-        readFileBuffer = new char[65536];
+        readFileBuffer = new char[16777216];
         readFile.rdbuf()->pubsetbuf(readFileBuffer, sizeof readFileBuffer);
         readFile = std::ifstream(filename1);
 
         if (readType == paired) {
-            readFileBuffer2 = new char[65536];
+            readFileBuffer2 = new char[16777216];
             readFile2.rdbuf()->pubsetbuf(readFileBuffer2, sizeof readFileBuffer2);
             readFile2 = std::ifstream(filename2);
         }

@@ -65,7 +65,7 @@ namespace rna {
     void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
 
         std::stringstream outputBuffer((std::string()));
-        int outputBufferSize = 500;
+        int outputBufferSize = 50000;
         int outputBufferCnt = 0;
 
 
