@@ -2,6 +2,7 @@
 #include "readAlign/ReadAligner.h"
 #include "readAlign/ReadAlignMultiThread.h"
 #include "utils/Parameters.h"
+#include "utils/utils.h"
 
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
@@ -51,6 +52,7 @@ int main(int argc, char* argv[]){
         rna::GenomeIndex genomeIndex;
         genomeIndex.setConfig(P.genomeIndexConfig);
         genomeIndex.load(P.genomeGenerateFileStoreDir);
+
         rna::ReadAlignMultiThread readAlignMultiThread(P);
         readAlignMultiThread.processReadFile( P.threads, genomeIndex, false);
     }

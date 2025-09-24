@@ -1,6 +1,7 @@
 #include "ReadAlignMultiThread.h"
 #include "../utils/Parameters.h"
 #include <filesystem>
+#include "../utils/utils.h"
 namespace rna {
     ReadAlignMultiThread::ReadAlignMultiThread(Parameters& P):
         readFile(P){
@@ -8,7 +9,8 @@ namespace rna {
             std::filesystem::create_directories(P.outPutDir);
         }
         outDir = P.outPutDir;
-        outFile = fopen((P.outPutDir+"/outAligned.out.sam").c_str(),"w");
+        outFile = fopen((P.outPutDir+"outAligned.out.sam").c_str(),"w");
+        outputAlignBuffer = new char[500000000];
     }
     void ReadAlignMultiThread::processReadFile(int tNum, rna::GenomeIndex &gInPre,
                                                bool partialOutput) {
@@ -20,7 +22,8 @@ namespace rna {
         setvbuf(outFile,outputAlignBuffer,_IOFBF,sizeof outputAlignBuffer);
         logFile = std::ofstream (outDir + "outLog.out");
         alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
-        alignProgressFile << "v4\n";
+        alignProgressFile << "v5\n";
+        alignProgressFile << "Started at: " << getTime() << '\n';
 
 
         for (int i = 0; i<threadNum;++i){
@@ -35,6 +38,7 @@ namespace rna {
         }
 
         for (auto &t: threads) {
+
             if (t.joinable()) {
                 t.join();
             }

@@ -28,7 +28,7 @@ namespace rna {
     void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
 
         std::stringstream outputBuffer((std::string()));
-        int outputBufferSize = 50000;
+        int outputBufferSize = 10000;
         int outputBufferCnt = 0;
 
 
@@ -101,6 +101,7 @@ namespace rna {
                 alignProgressFile << "Current time:" << totalTime << "s\t";
                 alignProgressFile << "Total reads processed (all threads): " << totalReadsProcessed << '\t';
                 alignProgressFile << "Speed:" <<std::fixed << std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0/1000000 << "Million r/h\n";
+                alignProgressFile.flush();
             }
 
             alignProgressLock.unlock();

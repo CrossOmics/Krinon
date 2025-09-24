@@ -4,6 +4,7 @@
 #include <fstream>
 #include <mutex>
 #include <memory>
+#include <chrono>
 
 namespace rna {
     class Parameters;
@@ -21,9 +22,13 @@ namespace rna {
         std::ifstream readFile2; // for paired-end
         std::mutex fileLock;
         ReadType readType{single};
+
+        //todo move them to a new class
         int64_t uniqueReadCount{0};
         int64_t multiReadCount{0};
         int64_t totalReadCount{0};
+
+
 
 
         ReadFile(std::string &readType);

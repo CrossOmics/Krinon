@@ -242,7 +242,7 @@ namespace rna {
                        std::to_string(strand == 0 ? 0 : 16) + "\t" +
                        chr + "\t" +
                        std::to_string(posInChr + 1) + "\t" + // SAM is 1-based
-                       std::to_string(qualityScore) +
+                       std::to_string(qualityScore) + "\t" +
                        CIGAR + "\t*\t0\t0\t" +
                        (strand == 0 ? read.sequence[0] : read.sequence[1]) + "\t" +
                        read.quality + "\n";

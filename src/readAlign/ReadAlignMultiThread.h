@@ -17,7 +17,7 @@ namespace rna{
         std::vector<std::thread> threads;
         int readCount{0};
         std::vector<ReadAligner> readAligners;
-        char outputAlignBuffer[1048576]; //buffer for output alignment
+        char* outputAlignBuffer; //buffer for output alignment
         FILE* outFile;
         std::string outDir;
         std::ofstream logFile;
@@ -33,6 +33,9 @@ namespace rna{
         }
     public:
         ReadAlignMultiThread(Parameters& P);
+        ~ReadAlignMultiThread(){
+            delete[] outputAlignBuffer;
+        };
         void setConfig(const StitchingConfig& scfg, const StitchingScoreConfig& sscfg, const SeedMappingConfig& smcfg) {
             stitchConfig = scfg;
             stitchingScoreConfig = sscfg;
