@@ -66,7 +66,7 @@ namespace rna {
                         t.isPaired = file.readType == ReadFile::paired;
                         std::string s = t.outputSam(*read, stitchingManagement->numGoodTranscripts_);
                         //fprintf(outFile,s.c_str(),s.length());
-                        /*outputBuffer << s;
+                        outputBuffer << s;
                         ++outputBufferCnt;
                         if (outputBufferCnt >= outputBufferSize) {
                             outputLock.lock();
@@ -74,7 +74,7 @@ namespace rna {
                             outputLock.unlock();
                             outputBuffer.str(std::string());
                             outputBufferCnt = 0;
-                        }*/
+                        }
                     }
                 }
             }

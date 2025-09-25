@@ -10,19 +10,20 @@ namespace rna {
         }
         outDir = P.outPutDir;
         outFile = fopen((P.outPutDir+"outAligned.out.sam").c_str(),"w");
-        outputAlignBuffer = new char[500000000];
+        
     }
     void ReadAlignMultiThread::processReadFile(int tNum, rna::GenomeIndex &gInPre,
                                                bool partialOutput) {
         threadNum = tNum;
-
+        int64_t outputBufferSize = 50000000 * threadNum; 
+        outputAlignBuffer = new char[outputBufferSize];
         std::string filename = readFile.readFileName;
         readFile.openFiles(readFile.readFileName, readFile.readFileName2);
 
-        setvbuf(outFile,outputAlignBuffer,_IOFBF,sizeof outputAlignBuffer);
+        setvbuf(outFile,outputAlignBuffer,_IOFBF,outputBufferSize);
         logFile = std::ofstream (outDir + "outLog.out");
         alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
-        alignProgressFile << "v5 No output\n";
+        alignProgressFile << "v6\n";
         alignProgressFile << "Started at: " << getTime() << '\n';
 
 
