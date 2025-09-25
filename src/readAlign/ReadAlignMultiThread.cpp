@@ -23,7 +23,7 @@ namespace rna {
         setvbuf(outFile,outputAlignBuffer,_IOFBF,outputBufferSize);
         logFile = std::ofstream (outDir + "outLog.out");
         alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
-        alignProgressFile << "v6\n";
+        alignProgressFile << "v7\n";
         alignProgressFile << "Started at: " << getTime() << '\n';
 
 

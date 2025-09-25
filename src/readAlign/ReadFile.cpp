@@ -30,13 +30,13 @@ namespace rna {
     void ReadFile::openFiles(const std::string &filename1, const std::string &filename2) {
         int64_t inputBufferSize = 30000000; 
         readFileBuffer = new char[inputBufferSize];
-        readFile.rdbuf()->pubsetbuf(readFileBuffer, inputBufferSize);
         readFile = std::ifstream(filename1);
+        readFile.rdbuf()->pubsetbuf(readFileBuffer, inputBufferSize);
 
         if (readType == paired) {
             readFileBuffer2 = new char[inputBufferSize];
-            readFile2.rdbuf()->pubsetbuf(readFileBuffer2, inputBufferSize);
             readFile2 = std::ifstream(filename2);
+            readFile2.rdbuf()->pubsetbuf(readFileBuffer2, inputBufferSize);
         }
     }
 
