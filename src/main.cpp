@@ -3,7 +3,45 @@
 #include "readAlign/ReadAlignMultiThread.h"
 #include "utils/Parameters.h"
 
+#include <plog/Log.h>
+#include <plog/Formatters/TxtFormatter.h>
+#include <plog/Initializers/ConsoleInitializer.h>
+
+
+void DoGenomeGenerate(rna::Parameters& params) {
+    rna::Genome g;
+    g.binSize = params.genomeBinSize;
+    g.loadFromFasta(params.genomeFile);
+    rna::GenomeIndex genomeIndex(g);
+    genomeIndex.setConfig(params.genomeIndexConfig);
+    genomeIndex.build();
+
+    if (!params.gtfFile.empty()) {
+        rna::GTF gtf(params.outLogFile);
+        gtf.loadGTF(params.gtfFile, *genomeIndex.genome);
+        gtf.fillSjdbLoci("./", *genomeIndex.genome);
+        gtf.insertJunctions(*genomeIndex.genome, genomeIndex);
+    }
+    genomeIndex.write(params.genomeGenerateFileStoreDir);
+}
+
+
+void DoReadAlign(rna::Parameters& params) {
+    rna::GenomeIndex genomeIndex;
+    genomeIndex.setConfig(params.genomeIndexConfig);
+    genomeIndex.load(params.genomeGenerateFileStoreDir);
+
+    PLOG_INFO << "Genome index loading done. Will begin alignment.";
+
+    rna::ReadAlignMultiThread readAlignMultiThread(params);
+    readAlignMultiThread.processReadFile(params, genomeIndex, false);
+}
+
+
 int main(int argc, char* argv[]){
+
+    plog::init<plog::TxtFormatter>(plog::info, plog::streamStdOut);
+
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
     // or you can also change their names to test.fa and test.fastq
     // do not use the default genomeIndexPrefixConfig, it is not suitable for large genome
@@ -26,35 +64,21 @@ int main(int argc, char* argv[]){
     P.process(argc,argv);
     std::string mode = P.mode;
     if (mode.empty()) {
-        std::cout << "Please specify the mode: GenomeGenerate, ReadAlign, both or test" << std::endl;
-
-        std::cout << P.program;
-        exit(0);
+        PLOG_ERROR << "Please specify the mode: GenomeGenerate, ReadAlign, both or test";
+        exit(-1);
     }
-    if (mode == "GenomeGenerate" || mode == "both") {
-        rna::Genome g;
-        g.binSize = P.genomeBinSize;
-        g.loadFromFasta(P.genomeFile);
-        rna::GenomeIndex genomeIndex(g);
-        genomeIndex.setConfig(P.genomeIndexConfig);
-        genomeIndex.build();
-
-        if (!P.gtfFile.empty()) {
-            rna::GTF gtf(P.outLogFile);
-            gtf.loadGTF(P.gtfFile, *genomeIndex.genome);
-            gtf.fillSjdbLoci("./", *genomeIndex.genome);
-            gtf.insertJunctions(*genomeIndex.genome, genomeIndex);
-        }
-        genomeIndex.write(P.genomeGenerateFileStoreDir);
+    else if (mode == "GenomeGenerate") {
+        DoGenomeGenerate(P);
     }
-    if (mode == "ReadAlign" || mode == "both") {
-        rna::GenomeIndex genomeIndex;
-        genomeIndex.setConfig(P.genomeIndexConfig);
-        genomeIndex.load(P.genomeGenerateFileStoreDir);
-
-        rna::ReadAlignMultiThread readAlignMultiThread(P);
-        readAlignMultiThread.processReadFile( P.threads, genomeIndex, false);
+    else if (mode == "ReadAlign") {
+        DoReadAlign(P);
     }
-
-
+    else if (mode == "both") {
+        DoGenomeGenerate(P);
+        DoReadAlign(P);
+    }
+    else {
+        PLOG_ERROR << "Unknown mode option `" << mode << "`";
+        exit(-1);
+    }
 };

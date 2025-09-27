@@ -7,11 +7,34 @@
 #include <sstream>
 #include "ReadFile.h"
 #include <iomanip>
+#include <plog/Log.h>
+
 namespace rna {
-    bool ReadAligner::loadReadFromFastq(ReadFile& file) {
+    ReadAligner::ReadAligner(const Parameters& P, const GenomeIndex& gInPre, int64_t beginFrom, int64_t expectedReadableBytes, int tId) : 
+        genomeIndexPrefix(gInPre), 
+        m_beginFrom(beginFrom),
+        m_expectedReadableBytes(expectedReadableBytes),
+        threadId(tId) 
+    {
+        seedMapping = std::make_unique<SeedMapping>( genomeIndexPrefix,SeedMappingConfig());
+        stitchingManagement = std::make_unique<StitchingManagement>(StitchingConfig(), gInPre);
+        inputBufferSize = 30000;
+        // inputBufferSize = 100000;
+        readBufferQueue.resize(inputBufferSize);
+        for (int i = 0; i < inputBufferSize; ++i) {
+            readBufferQueue[i] = std::make_shared<Read>();
+        }
+
+        // Open the file and prepare for reading
+        m_readFile = std::make_unique<ReadFile>(P, beginFrom, expectedReadableBytes, tId);
+        m_readFile->openFiles(P.readFile, P.readFile2);
+    }
+
+    // bool ReadAligner::loadReadFromFastq(ReadFile& file) {
+    bool ReadAligner::loadReadFromFastq() {
         if(queueEmpty) {
             nowReadInd = 0;
-            int cnt = file.loadReadChunkFromFastq(readBufferQueue, inputBufferSize);
+            int cnt = m_readFile->loadReadChunkFromFastq(readBufferQueue, inputBufferSize);
 
             if (cnt == 0) {
                 return false;
@@ -25,27 +48,36 @@ namespace rna {
         return true;
 
     }
-    void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
 
+    // void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
+    // void ReadAligner::processReadFile(ReadFile& file, int& totalReadsProcessed, const int threadIndex) {
+    void ReadAligner::processReadFile(
+        std::string outFilePath, int& totalReadsProcessed, const int numThreads, const int threadIndex, std::mutex& progressLock,
+        int& generationCounter) 
+    {
+        PLOG_DEBUG << "Aligner thread " << threadIndex << " spawned (producing into " << outFilePath << ")";
+        
+        auto outFile = fopen(outFilePath.c_str(),"w");
         std::stringstream outputBuffer((std::string()));
+
+        // TODO: Tune this!!!
         int outputBufferSize = 10000;
         int outputBufferCnt = 0;
-
 
         // count the number of reads processed in this call
         auto AligningStartTime = std::chrono::high_resolution_clock::now();
         auto previousProgressReportTime = AligningStartTime;
 
+        auto chunkCounts = 0;
 
-        while (loadReadFromFastq(file)) {
-
+        while (loadReadFromFastq()) {
             bool isUnique = false;
             bool isMulti = false;
-            ++readCount;
-            auto startTime = std::chrono::high_resolution_clock::now();
+            ++m_oneMinuteCycleReadCount;
+            // auto startTime = std::chrono::high_resolution_clock::now();
             seedMapping->processRead(read);
 
-            auto alignEndTime = std::chrono::high_resolution_clock::now();
+            // auto alignEndTime = std::chrono::high_resolution_clock::now();
 
             stitchingManagement->processAlignments(seedMapping->aligns,seedMapping->alignNum,read);
 
@@ -55,23 +87,16 @@ namespace rna {
                 isMulti = true;
             }
 
-
-
-
             if(!partialOutput || totalReadsProcessed < 10000){
                 if (stitchingManagement->status == StitchingManagement::SUCCESS){
-
                     for (int j = 0; j < stitchingManagement->numGoodTranscripts_; ++j) {
                         auto &t = stitchingManagement->goodTranscripts_[j];
-                        t.isPaired = file.readType == ReadFile::paired;
+                        t.isPaired = (m_readFile->readType == ReadFile::paired);
                         std::string s = t.outputSam(*read, stitchingManagement->numGoodTranscripts_);
-                        //fprintf(outFile,s.c_str(),s.length());
                         outputBuffer << s;
                         ++outputBufferCnt;
                         if (outputBufferCnt >= outputBufferSize) {
-                            outputLock.lock();
                             fprintf(outFile, outputBuffer.str().c_str(), outputBuffer.str().length());
-                            outputLock.unlock();
                             outputBuffer.str(std::string());
                             outputBufferCnt = 0;
                         }
@@ -79,49 +104,47 @@ namespace rna {
                 }
             }
 
-
             stitchingManagement->clear();
-            auto stitchEndTime = std::chrono::high_resolution_clock::now();
-
-
+            // auto stitchEndTime = std::chrono::high_resolution_clock::now();
 
             seedMapping->clear();
 
-
-
-            alignProgressLock.lock();
-            totalReadsProcessed++;
-            file.totalReadCount ++;
-            if (isUnique) file.uniqueReadCount++;
-            if (isMulti) file.multiReadCount++;
+            // file.totalReadCount ++;
+            // if (isUnique) file.uniqueReadCount++;
+            // if (isMulti) file.multiReadCount++;
             auto nowTime = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count() >= 60){
+            if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count() >= 10){
+                progressLock.lock();
+                // Decrement the generation and add the number of things you read
+                // If generation has hit zero, report the numbers
+                --generationCounter;
+                totalReadsProcessed += m_oneMinuteCycleReadCount;
+                m_oneMinuteCycleReadCount = 0;
                 previousProgressReportTime = nowTime;
-                auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
-                alignProgressFile << "Current time:" << totalTime << "s\t";
-                alignProgressFile << "Total reads processed (all threads): " << totalReadsProcessed << '\t';
-                alignProgressFile << "Speed:" <<std::fixed << std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0/1000000 << "Million r/h\n";
-                alignProgressFile.flush();
+                if (generationCounter == 0) {
+                    generationCounter = numThreads;
+                    auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
+                    PLOG_INFO << "Current time:" << totalTime << "s";
+                    PLOG_INFO << "Total reads processed (all threads): " << totalReadsProcessed;
+                    // PLOG_INFO << "Speed:" <<std::fixed << std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 3600.0/1000000 << "Million r/h";
+                    PLOG_INFO << "Speed:" <<std::fixed << std::setprecision(1)<< double (totalReadsProcessed) / double (totalTime) * 360.0/100000 << "Million r/h";
+                }
+                progressLock.unlock();
             }
 
-            alignProgressLock.unlock();
+            // auto nowTime = std::chrono::high_resolution_clock::now();
+            // auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(nowTime - AligningStartTime).count();
+            chunkCounts += 1;
+            // PLOG_INFO << "Aligner thread " << threadIndex << " finished chunk in: " << totalTime << " seconds";
         }
 
         if (outputBufferCnt > 0) {
-            outputLock.lock();
             fprintf(outFile, outputBuffer.str().c_str(), outputBuffer.str().length());
-            outputLock.unlock();
             outputBuffer.str(std::string());
             outputBufferCnt = 0;
         }
-
-
-
-
-
-
-
+        m_readFile->closeFiles();
+        fclose(outFile);
+        PLOG_DEBUG << "Aligner thread " << threadIndex << " finished after processing " << chunkCounts << " chunks";
     }
-
-
-}
+} // namespace rna

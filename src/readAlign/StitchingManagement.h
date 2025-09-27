@@ -9,7 +9,7 @@
 namespace rna {
     struct StitchingConfig {
         int maxAnchorRep{50};
-        int winBinSizeLog{16}; //the size of each window is k* 2^winBinSizeLog
+        int winBinSizeLog{16};                      // the size of each window is k* 2^winBinSizeLog
         int winAnchorDistBins{9};
         int flankSize{4};
         int maxWindows{10000};
@@ -18,8 +18,8 @@ namespace rna {
 
         //int minAlignLength{10};
         int maxRep{10000};
-        int maxExons{20}; // max exons number in a transcript
-        int transcriptStoredMax{100}; // maximum number of transcripts to store
+        int maxExons{20};                           // max exons number in a transcript
+        int transcriptStoredMax{100};               // maximum number of transcripts to store
 
         int outFilterMultimapMax{10};
         int maxMismatch{10};
@@ -36,16 +36,16 @@ namespace rna {
         int DEL_EXTEND_PENALTY = -2;
         int INS_OPEN_PENALTY = -2;
         int INS_EXTEND_PENALTY = -2;
-        int SCORE_STITCH_SJ_SHIFT = 1;// maximum score reduction while searching for SJ boundaries
-        int SCORE_GAP_GCAG = -4; // GC/AG and CT/GC junction penalty
-        int SCORE_GAP_ATAC = -8; // AT/AC and GT/AT junction penalty
+        int SCORE_STITCH_SJ_SHIFT = 1;              // maximum score reduction while searching for SJ boundaries
+        int SCORE_GAP_GCAG = -4;                    // GC/AG and CT/GC junction penalty
+        int SCORE_GAP_ATAC = -8;                    // AT/AC and GT/AT junction penalty
         int SCORE_GAP_NON_CANONICAL = -8;
         int SCORE_ANNOTATED_SJ = 2;
         int MAX_SJ_REPEAT_SEARCH = 255;
         int MIN_INTRON_LENGTH = 21;
         int MAX_INTRON_LENGTH = 2147483647;
-        int MAX_MISMATCH_FOR_SJ[4] = {0, -1, 0,
-                                                       0}; // max mismatch allowed for different SJ types: non-canonical, GT-AG, GC-AG, AT-AC, -1 means no limit
+        int MAX_MISMATCH_FOR_SJ[4] = {0, -1, 0, 0}; // max mismatch allowed for different SJ types: non-canonical, 
+                                                    // GT-AG, GC-AG, AT-AC, -1 means no limit
     };
 
     class StitchingManagement {
@@ -140,12 +140,12 @@ namespace rna {
         int64_t outFilterScoreMin_;
         int outFilterMatchMin_;
 
-        WindowAlign *allWindowAligns_; // window alignments stored for all windows.
+        WindowAlign *allWindowAligns_;              // window alignments stored for all windows.
         int32_t *winBinMap_[2];
 
-        StitchingRecord *nowStitchingRecord_; // stitching records for current window
-        ExtensionRecord *nowExtensionRecord_[2]; // extension records for current window, forward & backward
-        RawTranscript *nowRawTranscript_; // raw transcripts for current window, used to store stitching records
+        StitchingRecord *nowStitchingRecord_;       // stitching records for current window
+        ExtensionRecord *nowExtensionRecord_[2];    // extension records for current window, forward & backward
+        RawTranscript *nowRawTranscript_;           // raw transcripts for current window, used to store stitching records
         ExtensionRecord::singleExtensionRecord *allSingleExtensionRecord_;
 
         int64_t maxTranscriptScore_;
@@ -177,8 +177,6 @@ namespace rna {
         static constexpr int MAX_MISMATCH_FOR_SJ[4] = {0, -1, 0,0}; // max mismatch allowed for different SJ types: non-canonical, GT-AG, GC-AG, AT-AC, -1 means no limit
         static constexpr int ALIGN_ENDS_PROTRUDE = 0;
 
-
-
         static constexpr inline int32_t charToIndex(char c) {
             switch (c) {
                 case 'A':
@@ -193,8 +191,6 @@ namespace rna {
                     return 4;
             }
         }
-
-
     };
-}
+} // namespace rna
 #endif //RNAALIGNREFACTORED_WINDOWMANAGEMENT_H

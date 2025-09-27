@@ -1,8 +1,11 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.16)
 project(RNAAlignRefactored)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS -pthread)
 
+add_subdirectory(3rd-party/plog)
+add_subdirectory(3rd-party/yaml-cpp)
 add_executable(RNAAlignRefactored   main.cpp
                                     genome/Genome.cpp
                                     genome/GenomeIndex.cpp
@@ -17,3 +20,4 @@ add_executable(RNAAlignRefactored   main.cpp
                                     utils/argparse.hpp
                                     utils/Parameters.cpp
                                     )
+target_link_libraries(RNAAlignRefactored plog::plog yaml-cpp::yaml-cpp)

@@ -407,7 +407,6 @@ namespace rna {
 
     };
 
-
     using ReadPtr = std::shared_ptr<Read>;
     using TranscriptPtr = std::shared_ptr<Transcript>;
 

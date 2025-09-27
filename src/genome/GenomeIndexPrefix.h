@@ -12,10 +12,7 @@ namespace rna{
         int maxLayer = 3; // maximum number of layers for extension
         bool twoDirections {false};
         int extendAlternativeByte = 64;// 16 * 4 byte
-
     };
-
-
 
     class GenomeIndexPrefix {
     private:
@@ -95,8 +92,6 @@ namespace rna{
                 default: return -1;
             }
         }
-
-
     };
 }
 #endif //RNAALIGNREFACTORED_GENOMEINDEXPREFIX_H

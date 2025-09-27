@@ -1,0 +1,51 @@
+# TODO: In the name of all that is holy, DOCUMENT THIS!!
+
+
+# All configuration default values go here
+readAlign:
+  ReadAligner:
+    # Number of reads to load from input file as a single chunk
+    inputBufferSize: 30000
+    # Number of characters per each output chunk for a thread
+    outputBufferSize: 50000000
+  
+  SeedMappingConfig:
+    minSplitLength: 20
+    maxSeedPerRead: 1000
+  
+  StitchingConfig:
+    maxAnchorRep: 50
+    winBinSizeLog: 16
+    winAnchorDistBins: 9
+    flankSize: 4
+    maxWindows: 10000
+    maxSeedPerWindows: 50
+    maxRep: 10000
+    maxExons: 20
+    transcriptStoredMax: 100
+    outFilterMultimapMax: 10
+    maxMismatch: 10
+    multimapScoreRange: 1
+    outFilterScoreMinOverLRead: 0.66
+    outFilterMatchMinOverLRead: 0.66
+
+genome:
+  GenomeIndexConfig:
+    kMerSize: 10
+    twoDirections: true
+    extendAlternativeByte: 64 # 16 * 4 byte
+    insertSJ: false
+    insertSecondPass: false
+    sjdbOverhang: 100
+    sjdbLength: 220
+    # the default in STAR is 1000000, 20000 is for smaller test.
+    limitSjdbInsertN: 20000
+  
+  GenomeIndexPrefixConfig:
+    kMerSize: 4
+    extendLength: 2
+    extendIndexSize: 17
+    minExtendRep: 10
+    maxLayer: 3
+    twoDirections: false
+    extendAlternativeByte: 64 # 16 * 4 byte

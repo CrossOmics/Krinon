@@ -9,6 +9,8 @@
 #include "../readAlign/ReadAlignMultiThread.h"
 #include "../readAlign/SeedMapping.h"
 #include "../readAlign/StitchingManagement.h"
+#include "yaml-cpp/parser.h"
+
 namespace rna{
     class Parameters {
     public:

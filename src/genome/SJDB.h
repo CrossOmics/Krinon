@@ -11,9 +11,6 @@ namespace rna {
     class Genome;
     class GenomeIndex;
 
-
-
-
     struct exon {
         int64_t trID;
         int64_t start;
@@ -36,7 +33,6 @@ namespace rna {
         int64_t geneId;
 
         exonTrLoci() = default;
-
 
         bool operator<(const exonTrLoci &b) const {
             if (trID != b.trID) return trID < b.trID;
@@ -118,19 +114,16 @@ namespace rna {
         std::vector<std::string> sjdbGTFTagExonParentGeneName{"gene_name"};
         std::vector<std::string> sjdbGTFTagExonParentGeneType{"gene_type", "gene_biotype"};
 
-
         int sjdbOverhang{100};
         int sjdbLength{220}; // = sjdbOverhang*2+SJDB_PADDING_LENGTH
         int limitSjdbInsertN{1000000};
     };
 
 
-
     class GTF {
     private:
-
-
         std::ofstream &logFile_;
+
     public:
         GTFConfig config_;
         std::vector<std::string> transcriptID_;
@@ -182,9 +175,8 @@ namespace rna {
             }
             return {code , mer_length};
         }
-
     };
-}
+} // namespace rna
 
 
 #endif //RNAALIGNREFACTORED_SJDB_H

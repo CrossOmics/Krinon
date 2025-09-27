@@ -3,13 +3,12 @@
 #include <chrono>
 #include <fstream>
 #include <filesystem>
+#include <plog/Log.h>
 
 namespace rna {
     GenomeIndex::GenomeIndex(Genome &g) : genome(std::make_unique<Genome>(g)) {
         setConfig(GenomeIndexConfig());
-
     }
-
 
     int64_t GenomeIndex::encodeKMer(const std::string_view &pattern, const int mer_length) {
         if (pattern.length() < mer_length) return -1;
@@ -30,8 +29,6 @@ namespace rna {
     }
 
     void GenomeIndex::build() {
-
-
         std::string revSeq;
         revSeq.reserve(genome->sequence_.length());
         for (int64_t i = genome->sequence_.length() - 1; i >= 0; --i) {
@@ -56,22 +53,20 @@ namespace rna {
         suffixArray.build(genome->sequence_, true, reservedLength);
 
 
-        std::cout << "finished building suffix array\n";
+        PLOG_INFO << "finished building suffix array";
         patternMerMap_.resize(MER_NUM);
         longestCommonPrefix_.resize(suffixArray.length() + reservedLength, 0);
         buildLCP();
-        std::cout << "finished building LCP\n";
+        PLOG_INFO << "finished building LCP";
         buildKMerIndex();
         fillKMerIndex();
-        std::cout << "finished building kMerIndex\n";
+        PLOG_INFO << "finished building kMerIndex";
         appearance_flag.clear();
         buildKMerMap();
-        std::cout << "finished building index\n";
+        PLOG_INFO << "finished building index";
     }
 
     void GenomeIndex::buildLCP() {
-
-
         PackedArray rk;
         PackedArray& sa = suffixArray.sa_;
         rk.init(suffixArray.fullLength_, sa.getWordLengthBits());
@@ -140,7 +135,6 @@ namespace rna {
                 }
             }
         }
-
     }
 
     void GenomeIndex::buildKMerIndex() {
@@ -158,8 +152,6 @@ namespace rna {
     }
 
     void GenomeIndex::fillKMerIndex() {
-
-
         const std::string &text_ = genome->sequence_;
         const PackedArray &sa_ = suffixArray.sa_;
         int64_t prevHash = -1;
@@ -176,7 +168,6 @@ namespace rna {
             }
             if (patternMerMap_[hash].leftSAIndex == -1)
                 patternMerMap_[hash].leftSAIndex = i;
-
         }
 
         if (prevHash != -1 && patternMerMap_[prevHash].upperRange == -1)
@@ -189,7 +180,6 @@ namespace rna {
                 patternMerMap_[i].leftSAIndex = prevRightBound + 1;
             } else {
                 prevRightBound = patternMerMap_[i].leftSAIndex + patternMerMap_[i].upperRange;
-
             }
         }
     }
@@ -215,7 +205,6 @@ namespace rna {
 
     MatchStats GenomeIndex::getMatchStatsLCP(const std::string_view &pattern, size_t rangeLeft, size_t rangeRight,
                                              size_t matchedLength) const {
-
         //first ,get the longest match
         if (rangeLeft >= rangeRight) {
             return {0, 0, 0, 0};
@@ -291,7 +280,6 @@ namespace rna {
             }
         } else rightPos = rangeRight - 1;
 
-
         return {(int64_t) longestLength, rightPos - leftPos + 1, leftPos, rightPos};
     }
 
@@ -311,8 +299,6 @@ namespace rna {
                 int64_t nowMappedLength = i * lStart;
                 do {
                     MatchStats matchStats;
-
-
                     if (split.length - nowMappedLength < MER_LENGTH && split.length - nowMappedLength != 0) {
                         if (split.length -nowMappedLength <= 5) break; // too short to align
                         matchStats = find(readSeq[dir].substr(splitReadStart + split.length - MER_LENGTH, MER_LENGTH));
@@ -351,7 +337,6 @@ namespace rna {
                                 };
                                 alignNum++;
                             }
-
                         }
                     } else {
                         matchStats = find(
@@ -407,8 +392,6 @@ namespace rna {
             if (fullMatch) break; // no need to continue, already found a full match
         }
 
-
-
         return 0;
     }
 
@@ -456,23 +439,26 @@ namespace rna {
         logFile.close();
         saFile.close();
         saIndexFile.close();
-
     }
 
     void GenomeIndex::load(const std::string &inDir) {
         genome = std::make_unique<Genome>(Genome());
+
         std::ifstream logFile(inDir + "/indexInf.txt");
         std::ifstream genomeFile(inDir + "/genome.bin", std::ios::binary | std::ios::in);
         std::ifstream saFile(inDir + "/SA.bin", std::ios::binary | std::ios::in);
         std::ifstream saIndexFile(inDir + "/SAIndex.bin", std::ios::binary | std::ios::in);
+        
         if (!logFile.is_open() || !genomeFile.is_open() || !saFile.is_open() || !saIndexFile.is_open()) {
             throw std::runtime_error("Failed to open index files");
         }
+        
         logFile >> genomeLength;
         int64_t genomeSeqLength;
         logFile >> genomeSeqLength;
         logFile >> genome->originalGenomeLength;
         logFile >> genome->sjdbNum;
+
         genome->sequence_.resize(genomeSeqLength);
         genomeFile.read(genome->sequence_.data(), genomeSeqLength * sizeof(char));
         if (genome->sjdbNum > 0) {
@@ -487,6 +473,8 @@ namespace rna {
                             genome->sjdbNum * sizeof(int32_t));
         }
         genomeFile.close();
+        PLOG_INFO << "Finished loading binary genome file (length: " << genomeLength << ")";
+
         genome->chromosomes_.clear();
         std::string chrName;
         int64_t chrStart, chrLength, chrNum;
@@ -499,11 +487,10 @@ namespace rna {
         int64_t saLength, saFullLength;
         logFile >> saLength >> suffixArray.fullLength_;
         suffixArray.sa_.loadFromFile(saFile, logFile);
-
+        PLOG_INFO << "Finished loading suffix array (size: " << saLength << ")";
 
         logFile >> config.kMerSize >> config.twoDirections;
-        setConfig(GenomeIndexConfig{config.kMerSize,
-                                    config.twoDirections});
+        setConfig(GenomeIndexConfig{config.kMerSize, config.twoDirections});
 
         int64_t patternMerMapSize;
         logFile >> patternMerMapSize;
@@ -520,6 +507,7 @@ namespace rna {
         extendIndexHash.resize(extendIndexHashSize, 0);
         saIndexFile.read(reinterpret_cast<char *>(extendIndexHash.data()),
                          extendIndexHashSize * sizeof(uint32_t));
+        PLOG_INFO << "Finished loading suffix array indices";
 
         logFile.close();
         saFile.close();
@@ -552,19 +540,14 @@ namespace rna {
                 }
                 extendIndexHash[h * indNum + j] = (uint32_t) hash;
             }
-
         }
-
     }
-
 
     void GenomeIndex::buildKMerMap() {
         extendIndexHash.resize(MER_NUM * config.extendAlternativeByte / 4, 0);
 
         for (size_t i = 0; i < MER_NUM - 1; ++i) {
-
             buildKMerMapSingle(i);
-
         }
     }
 
@@ -696,12 +679,9 @@ namespace rna {
                 // no need to search
             }
 
-
             auto matchStats = getMatchStatsLCP(pattern, lBound, rBound, l);
 
             return matchStats;
         }
     }
-
-
-}
+} // namespace rna

@@ -12,8 +12,6 @@
 
 
 namespace rna {
-
-
     StitchingManagement::StitchingManagement(const StitchingConfig &config,
                                              const GenomeIndex &genomeIndex)
             : config_(config), genomeIndex_(genomeIndex) {
@@ -71,7 +69,6 @@ namespace rna {
             status = FAILED_NO_ALIGNMENTS;
             return;
         }
-
 
         bestTranscript_ = std::make_shared<Transcript>();
         read_ = std::move(read);
@@ -137,7 +134,6 @@ namespace rna {
         numGoodTranscripts_ = 0;
     }
 
-
     void StitchingManagement::identifyAnchors(Align *alignments, int alignNum) {
         for (int i = 0; i < alignNum; ++i) {
             // Check whether it is an anchor
@@ -181,7 +177,6 @@ namespace rna {
             ans.direction = 1;
             location = 2 * sjSeqLength - location - align.length;
         }
-
 
         int64_t startInSj = location % genomeIndex_.gtf->config_.sjdbLength;
         if (startInSj < genomeIndex_.gtf->config_.sjdbOverhang &&
@@ -319,8 +314,6 @@ namespace rna {
             }
         }
 
-
-
         // flank existing windows
         for (int32_t i = 0; i < windows_.size(); ++i) {
             auto &win = windows_[i];
@@ -347,10 +340,7 @@ namespace rna {
             memset(win.aligns, 0, sizeof(WindowAlign) * config_.maxSeedPerWindows);
             win.alignNum = 0;
         }
-
-
     }
-
 
     void StitchingManagement::assignSingleAlignment(Window &win, const PositiveStrandAlign &a, int64_t isj) const {
 
@@ -482,7 +472,6 @@ namespace rna {
             return;
         }
 
-
         // simple case
         // find the position to insert
         ++win.alignNum;
@@ -510,9 +499,7 @@ namespace rna {
                 isj,
                 a.iFragment
         };
-
     }
-
 
     void StitchingManagement::assignAlignmentsToWindows(const Align *alignments, int alignNum) {
         if (genomeIndex_.config.twoDirections) {
@@ -570,12 +557,9 @@ namespace rna {
         }
 
         // no need to sort alignments in each window, as they are inserted in order
-
     }
 
-
     // Generate transcripts for each window and find the best transcript
-
 
     void StitchingManagement::generateTranscriptsNew() {
         for (auto &window: windows_) {
@@ -583,7 +567,6 @@ namespace rna {
         }
 
     }
-
 
     //return: {matched,unmatched}
     inline std::pair<int64_t, int64_t> compareGenomeRead(const std::string &genomeSeq,
@@ -641,11 +624,8 @@ namespace rna {
         return {0, SCORE_GAP_NON_CANONICAL};
     }
 
-
     // stitch a new piece of alignment to the transcript and return the STITCH score. The alignment's match score is not included
     // however, when maintaining the transcript, the alignment's match score is added to the transcript's total score
-
-
 
     void
     StitchingManagement::stitchingBetweenWindowAligns(const rna::WindowAlign &a1, const rna::WindowAlign &a2,
@@ -671,8 +651,6 @@ namespace rna {
             return;
         }
 
-
-
         if(a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart ){
             // annotated splice junction
             if (genomeIndex_.genome->sjdb[a2.isj].motif == 0
@@ -691,14 +669,6 @@ namespace rna {
             record.stitchingType = {genomeIndex_.genome->sjdb[a2.isj].motif, a2.genomeStart - (a1GenomeEnd + 1), true};
             return;
         }
-
-
-
-
-
-
-
-
 
         if (a2ReadEnd <= a1ReadEnd || a2GenomeEnd <= a1GenomeEnd) {
             // r or g fully overlap, cannot stitch
@@ -918,7 +888,6 @@ namespace rna {
                 }
 
                 // todo implement the alignInsertionFlush parameter
-
             }
 
             record.score += Ins * INS_EXTEND_PENALTY + INS_OPEN_PENALTY;
@@ -930,8 +899,6 @@ namespace rna {
             record.mismatches = nMismatch;
             record.stitchingType = {junctionType, Ins, false};
         }
-
-
     }
 
     // extend the alignment
@@ -939,7 +906,6 @@ namespace rna {
     StitchingManagement::extendWindowAlign(const WindowAlign &a, int windowDir, int extendDir, ExtensionRecord &res) {
         std::string &genomeSeq = genomeIndex_.genome->sequence_;
         std::string &readSeq = read_->sequence[windowDir];
-
 
         int mismatchCount = 0;
         int matchCount = 0;
@@ -1048,11 +1014,8 @@ namespace rna {
             }
 
             res.maxExtensionScore = maxExtendScore;
-
         }
-
     }
-
 
     inline int getStitchingRecordIndex(int a, int b, int num) {
         // calculate the index of the stitching record between two alignments a,b (0-based)
@@ -1099,7 +1062,6 @@ namespace rna {
             if (maxPossibleScore < outFilterScoreMin_) return; // cannot produce a valid transcript, skip this window
         }
 
-
         int nowIndex = 0;
         for (int i = 0; i < nAligns; ++i) {
             for (int j = i + 1; j < nAligns; ++j) {
@@ -1109,10 +1071,9 @@ namespace rna {
             }
         }
 
-
-
         // DP, calculate the best stitching beginning with i and ending with j, for all alignments i,j
-        // this may require n^3 time complexity, but the Constant is very low. We have stored all important information in nowStitchingRecord_ and nowExtensionRecord_
+        // this may require n^3 time complexity, but the Constant is very low. 
+        // We have stored all important information in nowStitchingRecord_ and nowExtensionRecord_
         // filter by max_exons
         for (int k = 0; k < nAligns; ++k) {
             // calculate [i,i+k] for all i
@@ -1185,7 +1146,6 @@ namespace rna {
                                 }
                             }
 
-
                             int64_t nowScore = formerT.score + stitchingR.score + extendedInfo1.matched * MATCH_SCORE + extendedInfo1.mismatches * MISMATCH_PENALTY
                                       + extendedInfo2.matched * MATCH_SCORE + extendedInfo2.mismatches * MISMATCH_PENALTY;
 
@@ -1200,17 +1160,10 @@ namespace rna {
                                 t.extendedLengthFragmentFormer = extendedInfo1.length;
                                 t.extendedLengthFragmentLatter = extendedInfo2.length;
                                 t.firstFragmentMatchEnd = window.aligns[i+j].genomeStart + window.aligns[i+j].length;
-
                             }
 
-
                             continue;
-
-
-
                         }
-
-
 
                         if (formerT.mismatches + stitchingR.mismatches > config_.maxMismatch)
                             continue; // too many mismatches
@@ -1244,7 +1197,6 @@ namespace rna {
         int firstDirToExtend = window.direction;// 5' first
         int64_t localBestScore = -1000000;
 
-
         for (int i = 0; i < nAligns; ++i) {
             for (int j = 0; j < nAligns - i; ++j) {
                 RawTranscript &t = nowRawTranscript_[getRawTranscriptIndex(i, j, nAligns)];
@@ -1256,13 +1208,10 @@ namespace rna {
                     continue;
                 }
 
-
-
                 int dir = firstDirToExtend;
                 int endAlignId = dir == 0 ? i : i + j;
                 const ExtensionRecord &e1 = nowExtensionRecord_[firstDirToExtend][endAlignId];
                 int extendLength = 0;
-
 
                 ExtensionRecord::singleExtensionRecord extendInfo;
                 int score;
@@ -1305,10 +1254,8 @@ namespace rna {
                 t.score += int64_t(ceil(log2(double(window.aligns[i + j].genomeStart + window.aligns[i + j].length -
                                                     window.aligns[i].genomeStart)) * -0.25 - 0.5));
 
-
                 if (t.score > localBestScore)
                     localBestScore = t.score;
-
             }
         }
 
@@ -1457,27 +1404,20 @@ namespace rna {
                     }
                 }
 
-
                 if (posToInsert != -1) {
                     Transcript &nowT = goodTranscripts_[posToInsert];
                     nowT = curT;
                 }
-
             }
         }
-
-
     }
-
 
     TranscriptPtr StitchingManagement::getBestTranscript() const {
         return bestTranscript_;
     }
 
-
     std::vector<SJDBOutput> StitchingManagement::getSJDB() const {
         return sjdb;
     }
-
 } // namespace rna
 

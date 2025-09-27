@@ -16,23 +16,18 @@ namespace rna{
 
         int sjdbOverhang{100};
         int sjdbLength{220};
-        int limitSjdbInsertN{20000};// the default in STAR is 1000000, 20000 is for smaller test.
-
+        int limitSjdbInsertN{20000};
     };
-
-
 
     class GenomeIndex {
     private:
         std::vector<std::vector<int8_t>> appearance_flag; // records the appearance of each k-mer in the genome
         std::vector<int32_t> nowWindowHash;
 
-
-
     public:
-        int MER_LENGTH{0};  // k-mer length
-        size_t MER_NUM{0}; // k-mer num
-        int64_t genomeLength{0}; // genome length, one strand
+        int MER_LENGTH{0};                  // k-mer length
+        size_t MER_NUM{0};                  // k-mer num
+        int64_t genomeLength{0};            // genome length, one strand
 
         GenomeIndexConfig config;
         std::unique_ptr<Genome> genome;
@@ -101,8 +96,6 @@ namespace rna{
         }
 
         friend GTF;
-
-
     };
 }
 #endif //RNAALIGNREFACTORED_GENOMEINDEX_H

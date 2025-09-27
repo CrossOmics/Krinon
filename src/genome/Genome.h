@@ -1,13 +1,14 @@
 #ifndef RNAALIGNMENT_GENOME_H
 #define RNAALIGNMENT_GENOME_H
+
 #include <string>
 #include <string_view>
 #include <vector>
 #include <map>
 #include <cstdint>
 #include "../utils/types.h"
-namespace rna{
 
+namespace rna{
     struct GenomeSjdbRecord {
         size_t start;
         size_t end;
@@ -22,11 +23,10 @@ namespace rna{
 
         void buildPosToChromosomeMap();
 
-        static constexpr char SPACING_CHAR = '#';   // Character used for spacing in the sequence
+        static constexpr char SPACING_CHAR = '#';               // Character used for spacing in the sequence
 
     public:
         int binSize = 18;
-
 
         struct Chromosome {
             std::string name;
@@ -39,13 +39,10 @@ namespace rna{
         std::map<GenomePos,int64_t> chromosomeStartMap_;
         std::map<std::string,int64_t> chromosomeNameToIndex_;//todo move into class GTF
 
-
-
         int64_t sjdbNum{0};
         std::vector<GenomeSjdbRecord> sjdb;
         std::vector<int64_t> sjDonorStart_;
         std::vector<int64_t> sjAcceptorStart_;
-
 
         Genome();
         explicit Genome(const std::string& filename);
@@ -55,6 +52,6 @@ namespace rna{
         std::string_view getSequence(size_t pos,size_t length) const;
         void writeChrInfo(const std::string& dirOut) const;
     };
-}
+} // namespace rna
 
 #endif //RNAALIGNMENT_GENOME_H

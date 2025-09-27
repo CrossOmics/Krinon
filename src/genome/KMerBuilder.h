@@ -2,7 +2,7 @@
 #define RNAALIGNREFACTORED_KMERBUILDER_H
 #include <memory>
 #include <string_view>
-namespace rna{
+namespace rna {
     class GenomeIndex;
     class KMerIndexBuilder {
     public:
@@ -34,5 +34,7 @@ namespace rna{
 
     class SuffixAutomatonKMerBuilder;
     class WindowScanningKMerBuilder;
-}
+
+} // namespace rna
+
 #endif //RNAALIGNREFACTORED_KMERBUILDER_H
