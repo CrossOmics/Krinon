@@ -2,6 +2,7 @@
 #include "readAlign/ReadAligner.h"
 #include "readAlign/ReadAlignMultiThread.h"
 #include "utils/Parameters.h"
+#include <cassert>
 
 #include <plog/Log.h>
 #include <plog/Formatters/TxtFormatter.h>
@@ -39,8 +40,16 @@ void DoReadAlign(rna::Parameters& params) {
 
 
 int main(int argc, char* argv[]){
-
     plog::init<plog::TxtFormatter>(plog::info, plog::streamStdOut);
+
+    /**
+     * For now, I will assume we only run on Linux (I need this for some
+     * minor stuff, can patch it later).
+     */
+    #if !defined(__linux__)
+    PLOG_FATAL << "Currently, we only support Linux!";
+    assert(false);
+    #endif
 
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
     // or you can also change their names to test.fa and test.fastq

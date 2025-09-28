@@ -10,6 +10,7 @@
 #include "../readAlign/SeedMapping.h"
 #include "../readAlign/StitchingManagement.h"
 #include <yaml-cpp/yaml.h>
+#include <linux/limits.h>
 
 namespace rna{
     class Parameters {
@@ -21,6 +22,11 @@ namespace rna{
          * Inspect `config.yaml` to see what they are.
          */
         YAML::Node m_globalConfig;
+
+        /**
+         * This helps a lot to keep track of
+         */
+        std::filesystem::path m_binaryDir;
 
         std::string mode;
         int genomeBinSize;

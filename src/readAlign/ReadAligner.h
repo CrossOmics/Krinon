@@ -1,22 +1,24 @@
 #ifndef RNAALIGNREFACTORED_READALIGNER_H
 #define RNAALIGNREFACTORED_READALIGNER_H
 
-
 #include "../genome/GenomeIndex.h"
 #include "../utils/types.h"
+#include "../utils/atomic_generation.hpp"
 #include <vector>
 #include "SeedMapping.h"
 #include "StitchingManagement.h"
 #include <memory>
 #include <fstream>
 #include <sstream>
-#include <mutex>
 #include <queue>
+#include <atomic>
 #include "ReadFile.h"
 #include "../utils/Parameters.h"
+#include "../utils/memory_mapped_output.hpp"
+
+#define RNAALIGNER_PROGRESS_REPORT_INTERVAL_SECONDS 10
 
 namespace rna {
-    // class ReadFile;
     class Parameters;
     class ReadAligner {
     private:
@@ -36,8 +38,16 @@ namespace rna {
         std::vector<TranscriptPtr> bestTranscripts;                 // the transcripts generated from the read
         std::vector<SJDBOutput> sjdbCandidates;                     // splice junction candidates from the read
 
-        int threadId{0};
-        int m_oneMinuteCycleReadCount{0};
+        int m_threadIndex;
+        int64_t m_periodicReadCount{0};
+
+        /**
+         * UPDATE: Made these two members of the classs, since it helps for
+         *         other things as well.
+         */
+        std::chrono::_V2::system_clock::time_point m_alignmentStartTime;
+        std::chrono::_V2::system_clock::time_point m_previousProgressReportTime;
+
         int inputBufferSize = 30000;
         int nowReadInd;
         int nowQueueSize{0};
@@ -47,19 +57,34 @@ namespace rna {
     public:
         bool partialOutput{false};
 
-        void setConfig(const StitchingConfig& scfg, const StitchingScoreConfig& sscfg, const SeedMappingConfig& smcfg) {
+        ReadAligner(
+            const Parameters& P, 
+            const GenomeIndex& gInPre, 
+            int64_t beginFrom, 
+            int64_t expectedReadableBytes, 
+            int threadIndex = 0
+        );
+
+        void setConfig(
+            const StitchingConfig& scfg, 
+            const StitchingScoreConfig& sscfg, 
+            const SeedMappingConfig& smcfg) 
+        {
             seedMapping->setConfig(smcfg);
             stitchingManagement->setConfig(scfg,sscfg);
         }
-        // ReadAligner(const GenomeIndex& gInPre, int tId = 0) : genomeIndexPrefix(gInPre), threadId(tId) {
-        ReadAligner(const Parameters& P, const GenomeIndex& gInPre, int64_t beginFrom, int64_t expectedReadableBytes, int tId = 0);
 
-        // bool loadReadFromFastq(ReadFile& file);
         bool loadReadFromFastq();
-        // void processReadFile(ReadFile& file,FILE* outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed);
-        // void processReadFile(ReadFile& file, int& totalReadsProcessed, const int threadIndex = 0);
-        void processReadFile(std::string outFilePath, int& totalReadsProcessed, const int numThreads, const int threadIndex, 
-            std::mutex& progressLock, int& generationCounter);
+        void reportProgress(
+            std::atomic_int64_t& totalReadsProcessed,
+            AtomicGenerationCounter& generationCounter
+        );
+        void processReadFile(
+            MemoryMappedFile& outputFileMapped,
+            std::atomic_int64_t& outputOffset,
+            std::atomic_int64_t& totalReadsProcessed,  
+            AtomicGenerationCounter& generationCounter
+        );
     };
 } // namespace rna
 #endif //RNAALIGNREFACTORED_READALIGNER_H

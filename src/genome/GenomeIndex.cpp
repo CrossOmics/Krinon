@@ -444,6 +444,8 @@ namespace rna {
     void GenomeIndex::load(const std::string &inDir) {
         genome = std::make_unique<Genome>(Genome());
 
+        auto loadStart = std::chrono::high_resolution_clock::now();
+
         std::ifstream logFile(inDir + "/indexInf.txt");
         std::ifstream genomeFile(inDir + "/genome.bin", std::ios::binary | std::ios::in);
         std::ifstream saFile(inDir + "/SA.bin", std::ios::binary | std::ios::in);
@@ -507,7 +509,12 @@ namespace rna {
         extendIndexHash.resize(extendIndexHashSize, 0);
         saIndexFile.read(reinterpret_cast<char *>(extendIndexHash.data()),
                          extendIndexHashSize * sizeof(uint32_t));
-        PLOG_INFO << "Finished loading suffix array indices";
+        
+        auto now = std::chrono::high_resolution_clock::now();
+        PLOG_INFO 
+            << "Finished loading genome indices. Took "
+            << std::chrono::duration_cast<std::chrono::seconds>(now - loadStart).count()
+            << " seconds.";
 
         logFile.close();
         saFile.close();

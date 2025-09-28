@@ -1,6 +1,7 @@
 #include "ReadAlignMultiThread.h"
 #include "../utils/Parameters.h"
 #include <filesystem>
+#include <sys/mman.h>
 #include "../utils/utils.h"
 
 namespace rna {
@@ -9,70 +10,82 @@ namespace rna {
         m_inputFile1(params.readFile),
         m_inputFile2(params.readFile2),
         m_generationCounter(params.threads)
+    {}
+
+    void ReadAlignMultiThread::singleThreadProcess(ReadAligner& r, int threadIndex, MemoryMappedFile& output) {
+        r.processReadFile(output, m_outputOffset, m_totalReadCount, m_generationCounter);
+    }
+
+    void ReadAlignMultiThread::initiateAligners(
+        rna::Parameters& params, 
+        rna::GenomeIndex &gInPre,
+        int64_t totalBytesToRead, 
+        bool partialOutput) 
     {
-    }
-
-    void ReadAlignMultiThread::singleThreadProcess(ReadAligner&r, int threadIndex, std::string outputDir) {
-        // r.processReadFile(readFile, outFile, logFile, alignProgressFile, outputLock, alignStatusLock, alignProgressLock, readCount);
-        // r.processReadFile(readFile, readCount, threadIndex);
-        auto alignerOutputFileName = (std::filesystem::path(outputDir) / std::filesystem::path("alignerOutput-" + std::to_string(threadIndex) + ".tmp")).string();
-        r.processReadFile(alignerOutputFileName, readCount, threadNum, threadIndex, m_alignProgressLock, m_generationCounter);
-    }
-          
-    void ReadAlignMultiThread::processReadFile(rna::Parameters& params, rna::GenomeIndex &gInPre, bool partialOutput) {
-        // int64_t outputBufferSize = 50000000 * threadNum;  
-        // outputAlignBuffer = new char[outputBufferSize];
-        // std::string filename = readFile.readFileName;
-        // readFile.openFiles(readFile.readFileName, readFile.readFileName2);
-        // readFile.openFiles(readFile.readFileName);
-
-        // setvbuf(outFile,outputAlignBuffer,_IOFBF,outputBufferSize);
-        // logFile = std::ofstream (outDir + "outLog.out");
-        // alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
-        // alignProgressFile << "v8\n";
-        // alignProgressFile << "Started at: " << getTime() << '\n';
-
-        // TODO@arvin: Handle pairs later
-        assert(m_inputFile2 == "");
-
-        // First, check how large the file is
-        int64_t totalBytesToRead = std::filesystem::file_size(m_inputFile1);
-
-        // Now, chunk it up given the number of threads
-        int64_t threadChunkSize = totalBytesToRead / threadNum;
-        int64_t remainder = totalBytesToRead % threadNum;
         int64_t start = 0;
         int64_t currentChunkSize = 0;
+        int64_t threadChunkSize = totalBytesToRead / threadNum;
+        int64_t remainder = totalBytesToRead % threadNum;
 
         for (int i = 0; i < threadNum; ++i){
             if (i == 0)
                 currentChunkSize = threadChunkSize + remainder;
             else
                 currentChunkSize = threadChunkSize;
-            readAligners.push_back(ReadAligner(params, gInPre, start, currentChunkSize, i));
-            readAligners[i].partialOutput = partialOutput;
-            readAligners[i].setConfig(stitchConfig, stitchingScoreConfig, seedMappingConfig);
+            m_readAligners.push_back(ReadAligner(params, gInPre, start, currentChunkSize, i));
+            m_readAligners[i].partialOutput = partialOutput;
+            m_readAligners[i].setConfig(stitchConfig, stitchingScoreConfig, seedMappingConfig);
             start += currentChunkSize;
         }
 
         assert(start == totalBytesToRead);
+    }
 
+    void ReadAlignMultiThread::doMultiThreadedAlignment(
+        rna::Parameters& params,
+        MemoryMappedFile& output) 
+    {
         auto alignmentStart = std::chrono::high_resolution_clock::now();
         
         for (int i = 0; i < threadNum; ++i) {
-            auto &r = readAligners[i];
-            threads.emplace_back([this, &r, &params, i] { singleThreadProcess(r, i, params.outPutDir); });
+            auto &r = m_readAligners[i];
+            m_threads.emplace_back([this, &r, &output, i] { singleThreadProcess(r, i, output); });
         }
-        for (auto &t: threads) {
-            if (t.joinable()) {
+        for (auto &t: m_threads) {
+            if (t.joinable())
                 t.join();
-            }
         }
-        threads.clear();
+        m_threads.clear();
 
         auto now = std::chrono::high_resolution_clock::now();
         auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(now - alignmentStart).count();
         PLOG_INFO << "Total time for alignment: " << totalTime << " seconds";
+    }
+          
+    void ReadAlignMultiThread::processReadFile(rna::Parameters& params, rna::GenomeIndex &gInPre, bool partialOutput) {
+        /**
+         * TODO: Handle pairs later
+         */
+        assert(m_inputFile2 == "");
+
+        // First, check how large the file is
+        int64_t totalBytesToRead = std::filesystem::file_size(m_inputFile1);
+
+        // Allocate the memory-mapped output file
+        // Currently, I have hardcoded it to be 1.5 times the input size
+        int64_t maximumTotalBytesToWrite = 150 * totalBytesToRead / 100;
+        auto outputFilePath = 
+            std::filesystem::path(params.outPutDir) / 
+            std::filesystem::path("alignerOutput.out.sam");
+        MemoryMappedFile outputFile(outputFilePath, maximumTotalBytesToWrite);
+
+        // Now, chunk the input up given the number of threads
+        initiateAligners(params, gInPre, totalBytesToRead, partialOutput);
+        // Being alignment
+        doMultiThreadedAlignment(params, outputFile);
+        // Close the output
+        outputFile.memClose();
+
         // readFile.closeFiles();
         // fclose(outFile);
         // logFile << "Total reads processed: " << readFile.totalReadCount << '\n';

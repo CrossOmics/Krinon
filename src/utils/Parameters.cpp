@@ -14,9 +14,29 @@ const int SJDB_PADDING_LENGTH = 20;
 
 namespace rna {
     Parameters::Parameters() : 
-        program("rnaAligner"),
-        m_globalConfig(YAML::LoadFile("config.yaml"))
+        program("rnaAligner")
     {
+        // First, discover where we are even running
+        char result[PATH_MAX];
+        if (readlink("/proc/self/exe", result, PATH_MAX) > 0) {
+            m_binaryDir = std::filesystem::path(result).parent_path();
+            PLOG_INFO << "Binary running on path: " << m_binaryDir;
+        }
+        else {
+            PLOG_FATAL << "Couldn't discover running binary location";
+            exit(-1);
+        }
+
+        // Load the config file
+        auto configPath = m_binaryDir / std::filesystem::path("config.yaml");
+        if (std::filesystem::exists(configPath)) {
+            PLOG_INFO << "Found configuration file at: " << configPath;
+            m_globalConfig = YAML::LoadFile(configPath.c_str());
+        }
+        else {
+            PLOG_FATAL << "Could not locate configuration file!";
+            exit(-1);
+        }
         auto GENOME_INDEX_CONFIG = m_globalConfig["genome"]["GenomeIndexConfig"];
         auto GENOME_PREFIX_CONFIG = m_globalConfig["genome"]["GenomeIndexPrefixConfig"];
         auto READ_ALIGNER_CONFIG = m_globalConfig["readAlign"]["ReadAligner"];
