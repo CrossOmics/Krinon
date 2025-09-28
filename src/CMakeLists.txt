@@ -21,3 +21,6 @@ add_executable(RNAAlignRefactored   main.cpp
                                     utils/Parameters.cpp
                                     )
 target_link_libraries(RNAAlignRefactored plog::plog yaml-cpp::yaml-cpp)
+
+# Add the config file
+configure_file(${CMAKE_SOURCE_DIR}/config.yaml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)

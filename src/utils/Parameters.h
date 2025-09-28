@@ -9,12 +9,19 @@
 #include "../readAlign/ReadAlignMultiThread.h"
 #include "../readAlign/SeedMapping.h"
 #include "../readAlign/StitchingManagement.h"
-#include "yaml-cpp/parser.h"
+#include <yaml-cpp/yaml.h>
 
 namespace rna{
     class Parameters {
     public:
         argparse::ArgumentParser program;
+
+        /**
+         * A global config node that contains the default values for all parameters
+         * Inspect `config.yaml` to see what they are.
+         */
+        YAML::Node m_globalConfig;
+
         std::string mode;
         int genomeBinSize;
         std::string genomeFile;
@@ -35,7 +42,6 @@ namespace rna{
 
         Parameters();
         int process(int argc, char* argv[]);
-
     };
 }
 

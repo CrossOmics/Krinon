@@ -6,7 +6,7 @@ readAlign:
   ReadAligner:
     # Number of reads to load from input file as a single chunk
     inputBufferSize: 30000
-    # Number of characters per each output chunk for a thread
+    # Number of characters per each output chunk for writing
     outputBufferSize: 50000000
   
   SeedMappingConfig:
