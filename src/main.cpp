@@ -3,6 +3,7 @@
 #include "readAlign/ReadAlignMultiThread.h"
 #include "utils/Parameters.h"
 
+
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
     // or you can also change their names to test.fa and test.fastq

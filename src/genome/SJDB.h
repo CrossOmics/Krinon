@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <set>
+#include <cstdint>
 
 
 namespace rna {

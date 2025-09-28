@@ -10,24 +10,34 @@ namespace rna {
         }
         outDir = P.outPutDir;
         outFile = fopen((P.outPutDir+"outAligned.out.sam").c_str(),"w");
-        
+
     }
     void ReadAlignMultiThread::processReadFile(int tNum, rna::GenomeIndex &gInPre,
                                                bool partialOutput) {
         threadNum = tNum;
-        int64_t outputBufferSize = 50000000 * threadNum; 
+        int64_t outputBufferSize = 100000000;
         outputAlignBuffer = new char[outputBufferSize];
+
         std::string filename = readFile.readFileName;
         readFile.openFiles(readFile.readFileName, readFile.readFileName2);
+        readFile.threadReadCount = new int64_t[threadNum];
+        readFile.threadUniqueReadCount = new int64_t[threadNum];
+        readFile.threadMultiReadCount = new int64_t[threadNum];
+        readFile.threadNum = threadNum;
+
 
         setvbuf(outFile,outputAlignBuffer,_IOFBF,outputBufferSize);
         logFile = std::ofstream (outDir + "outLog.out");
+
         alignProgressFile = std::ofstream (outDir + "outLog.progress.out");
-        alignProgressFile << "v8\n";
+        alignProgressFile << "v7\n";
         alignProgressFile << "Started at: " << getTime() << '\n';
 
 
         for (int i = 0; i<threadNum;++i){
+            readFile.threadReadCount[i] = 0;
+            readFile.threadMultiReadCount[i] = 0;
+            readFile.threadUniqueReadCount[i] = 0;
 
             readAligners.push_back(ReadAligner(gInPre,i));
             readAligners[i].partialOutput = partialOutput;
@@ -47,6 +57,11 @@ namespace rna {
         threads.clear();
         readFile.closeFiles();
         fclose(outFile);
+        for (int i = 0; i<threadNum;++i){
+            readFile.totalReadCount += readFile.threadReadCount[i];
+            readFile.uniqueReadCount += readFile.threadUniqueReadCount[i];
+            readFile.multiReadCount += readFile.threadMultiReadCount[i];
+        }
         logFile << "Total reads processed: " << readFile.totalReadCount << '\n';
         logFile << "Unique reads: " << readFile.uniqueReadCount << '\n';
         logFile << "Multi-mapping reads: " << readFile.multiReadCount << '\n';

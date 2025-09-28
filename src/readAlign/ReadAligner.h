@@ -31,11 +31,14 @@ namespace rna {
 
             int threadId{0};
             int readCount{0};
-            int inputBufferSize = 30000;
+            int inputBufferSize{30000};
             int nowReadInd;
             int nowQueueSize{0};
             bool queueEmpty{true};
-            std::vector<ReadPtr> readBufferQueue;
+
+            std::vector<std::array<std::string, 4>> lines1;
+            std::vector<std::array<std::string, 4>> lines2;
+
 
 
 
@@ -51,11 +54,9 @@ namespace rna {
         ReadAligner(const GenomeIndex& gInPre, int tId = 0) : genomeIndexPrefix(gInPre), threadId(tId) {
             seedMapping = std::make_unique<SeedMapping>( genomeIndexPrefix,SeedMappingConfig());
             stitchingManagement = std::make_unique<StitchingManagement>(StitchingConfig(), gInPre);
-            inputBufferSize = 30000;
-            readBufferQueue.resize(inputBufferSize);
-            for (int i = 0; i < inputBufferSize; ++i) {
-                readBufferQueue[i] = std::make_shared<Read>();
-            }
+            inputBufferSize = 30;
+            lines1.resize(inputBufferSize);
+            lines2.resize(inputBufferSize);
         }
 
         bool loadReadFromFastq(ReadFile& file);

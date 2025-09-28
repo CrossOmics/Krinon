@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+
 #include "omp.h"
 
 #define GTAG 1

@@ -4,8 +4,12 @@
 #include <algorithm>
 #include "../utils/Parameters.h"
 
+#define MAX_BUFFER_READ_NUM 10000
+#define MAX_READ_CHUNK_SIZE 50000
+
 namespace rna {
     ReadFile::ReadFile(std::string &readType) {
+
         if (readType == "single") {
             this->readType = single;
         } else if (readType == "paired") {
@@ -17,10 +21,12 @@ namespace rna {
     }
 
     ReadFile::ReadFile(Parameters &P) {
+
         if (P.isPaired) {
             this->readType = paired;
             readFileName = P.readFile;
             readFileName2 = P.readFile2;
+
         } else {
             this->readType = single;
             readFileName = P.readFile;
@@ -28,15 +34,16 @@ namespace rna {
     }
 
     void ReadFile::openFiles(const std::string &filename1, const std::string &filename2) {
-        int64_t inputBufferSize = 30000000; 
+        int64_t inputBufferSize = 30000000;
         readFileBuffer = new char[inputBufferSize];
+        readFile = std::ifstream(filename1);
         readFile.rdbuf()->pubsetbuf(readFileBuffer, inputBufferSize);
-        readFile.open(filename1);
 
         if (readType == paired) {
             readFileBuffer2 = new char[inputBufferSize];
+            readFile2 = std::ifstream(filename2);
             readFile2.rdbuf()->pubsetbuf(readFileBuffer2, inputBufferSize);
-            readFile2.open(filename2);
+
         }
     }
 
@@ -47,102 +54,46 @@ namespace rna {
         }
     }
 
-    bool ReadFile::loadReadFromFastq(rna::ReadPtr &read) {
-        std::array<std::string, 4> lines1;
-        std::array<std::string, 4> lines2;
 
 
-        for (int i = 0; i < 4; ++i) {
-            if (!(std::getline(readFile, lines1[i]))) {
 
-                return false;
-            }
-            if (lines1[i][lines1[i].size() - 1] == '\r') {
-                lines1[i].pop_back(); // Windows file in linux
-            }
-        }
-        if (readType == paired) {
+    int ReadFile::loadReadFromFastq(std::vector<std::array<std::string, 4>>& lines1,std::vector<std::array<std::string, 4>>& lines2,int chunkSize) {
+
+
+        int r;
+        fileLock.lock();
+        
+        bool isEnd = false;
+        for (r = 0; r < chunkSize; ++r) {
+            auto &l1 = lines1[r];
+            auto &l2 = lines2[r];
             for (int i = 0; i < 4; ++i) {
-                if (!(std::getline(readFile2, lines2[i]))) {
-
-                    return false;
-                }
-                if (lines2[i][lines2[i].size() - 1] == '\r') {
-                    lines2[i].pop_back(); // Windows file in linux
+                if (!(std::getline(readFile, l1[i]))) {
+                    isEnd = true;
+                    break;
                 }
             }
-        }
-
-
-        read = std::make_shared<Read>();
-        std::istringstream nameStream(lines1[0].substr(1));
-        nameStream >>read->name;
-        if(readType == paired){
-            std::reverse(lines2[1].begin(),lines2[1].end());
-            std::reverse(lines2[3].begin(),lines2[3].end());
-            for (char &c: lines2[1]) {
-                switch (c) {
-                    case 'A':
-                        c = 'T';
+            if (readType == paired) {
+                for (int i = 0; i < 4; ++i) {
+                    if (!(std::getline(readFile2, l2[i]))) {
+                        isEnd = true;
                         break;
-                    case 'T':
-                        c = 'A';
-                        break;
-                    case 'C':
-                        c = 'G';
-                        break;
-                    case 'G':
-                        c = 'C';
-                        break;
-                    default:
-                        c = 'N';
-                        break;
+                    }
                 }
             }
-            read->sequence[0] = lines1[1] + '#' + lines2[1];
-            read->sequence[1] = lines1[1] + '#' + lines2[1];
-            read->length = lines1[1].length() + 1 + lines2[1].length();
-            read->quality = lines1[3] + ' ' + lines2[3];
-            read->mate1Length = lines1[1].length();
-            read->mate2Length = lines2[1].length();
-        }else {
-            read->sequence[0] = lines1[1];
-            read->sequence[1] = lines1[1];
-            read->length = lines1[1].length();
-            read->quality = lines1[3];
+            if (isEnd) break;
         }
-
-        std::reverse(read->sequence[1].begin(), read->sequence[1].end());
-        for (char &c: read->sequence[1]) {
-            switch (c) {
-                case 'A':
-                    c = 'T';
-                    break;
-                case 'T':
-                    c = 'A';
-                    break;
-                case 'C':
-                    c = 'G';
-                    break;
-                case 'G':
-                    c = 'C';
-                    break;
-                case '#':
-                    break;
-                default:
-                    c = 'N';
-                    break;
-            }
-        }
+        fileLock.unlock();
 
 
 
-        return true;
+
+        return r;
 
 
     }
 
-    int ReadFile::loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize){
+    /*int ReadFile::loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize){
         int count = 0;
         fileLock.lock();
         for(int i = 0; i < chunkSize; ++i){
@@ -154,5 +105,5 @@ namespace rna {
         }
         fileLock.unlock();
         return count;
-    }
+    }*/
 }

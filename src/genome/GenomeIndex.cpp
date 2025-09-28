@@ -184,13 +184,14 @@ namespace rna {
 
         int64_t prevRightBound = 0;
 
-        for (int64_t i = 0; i < MER_NUM - 1; --i) {
+        for (int64_t i = 0; i < MER_NUM - 1; ++i) {
             if (patternMerMap_[i].length < MER_LENGTH) {
                 patternMerMap_[i].leftSAIndex = prevRightBound + 1;
             } else {
                 prevRightBound = patternMerMap_[i].leftSAIndex + patternMerMap_[i].upperRange;
 
             }
+
         }
     }
 

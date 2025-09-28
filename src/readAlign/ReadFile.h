@@ -5,6 +5,7 @@
 #include <mutex>
 #include <memory>
 #include <chrono>
+#include <atomic>
 
 namespace rna {
     class Parameters;
@@ -23,10 +24,16 @@ namespace rna {
         std::mutex fileLock;
         ReadType readType{single};
 
+
         //todo move them to a new class
-        int64_t uniqueReadCount{0};
-        int64_t multiReadCount{0};
-        int64_t totalReadCount{0};
+        std::atomic<int64_t> uniqueReadCount{0};
+        std::atomic<int64_t> multiReadCount{0};
+        std::atomic<int64_t> totalReadCount{0};
+
+        int64_t* threadUniqueReadCount;
+        int64_t* threadMultiReadCount;
+        int64_t* threadReadCount;
+        int threadNum;
 
 
 
@@ -37,10 +44,14 @@ namespace rna {
         ~ReadFile(){
             delete[] readFileBuffer;
             delete[] readFileBuffer2;
+            delete[] threadMultiReadCount;
+            delete[] threadUniqueReadCount;
+            delete[] threadReadCount;
         };
         void openFiles(const std::string& filename1,const std::string& filename2="");
-        bool loadReadFromFastq(ReadPtr& read);
-        int loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize);
+        int loadReadFromFastq(std::vector<std::array<std::string, 4>>& lines1,std::vector<std::array<std::string, 4>>& lines2,int chunkSize);
+        //int loadReadChunk(char* buffer, int64_t bufferSize);
+        //int loadReadChunkFromFastq(std::vector<ReadPtr>& reads, int chunkSize);
         void closeFiles();
     };
 }
