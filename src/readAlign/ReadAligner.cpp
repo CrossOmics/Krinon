@@ -175,7 +175,7 @@ namespace rna {
             file.threadReadCount[threadId]++;
             if (threadId == 0){
                 int64_t nowTotalRead = 0;
-                for (int i = 0; i<file.threadNum; ++i) nowTotalRead += file.threadReadCount[threadId];
+                for (int i = 0; i<file.threadNum; ++i) nowTotalRead += file.threadReadCount[i];
                 auto nowTime = std::chrono::high_resolution_clock::now();
                 if (std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousProgressReportTime).count() >= 60){
                 previousProgressReportTime = nowTime;
