@@ -3,48 +3,32 @@
 # Exit on error
 set -euo pipefail
 
-# ==== CONFIGURATION ====
-THREADS=32
+# HARD CODED!!!
+DATA_DIR="/ssd1/arvin/Aligner"
+STAR_EXEC="/home/arvin/Aligner/STAR/source/STAR"
+# STAR_EXEC="/home/arvin/Aligner/STAR/bin/Linux_x86_64/STAR"
 
-# Input files and directories
-GENOME_FA="/mnt/data/aghavidel/human_genome/GRCh38.primary_assembly.genome.fa"
-GTF="/mnt/data/aghavidel/human_genome/gencode.v45.annotation.gtf"
+GENOME_DIR="${DATA_DIR}/genomes"
+OUT_DIR="${DATA_DIR}/outputs"
+READ_DIR="${DATA_DIR}/reads"
 
+GENOME_FA="${GENOME_DIR}/human_genome/GRCh38.primary_assembly.genome.fa"
+GENOME_GTF="${GENOME_DIR}/human_genome/gencode.v45.annotation.gtf"
+GENOME_INDEX="${GENOME_DIR}/human_genome/index"
 
-#ALZ
-#FASTQ="/mnt/data/aghavidel/alz/SRR16101430_1.fastq"
-FASTQ="/mnt/data/aghavidel/alz/SRR16101435_1.fastq"
+# FASTQ="/mnt/data/aghavidel/alz/SRR16101435_1.fastq"
+READ_FASTQ="${READ_DIR}/SRR16101430_1.fastq"
 
-#Healthy-Human
-#FASTQ="/mnt/data/aghavidel/healthy_human/hg002_gm24385.mrna.R1.fastq"
+THREADS="$1"
 
-
-GENOME_DIR="/mnt/data/aghavidel/human_genome/index"
-OUT_PREFIX="/mnt/data/aghavidel/output/Alz"
-
-# ==== Create index directory ====
-mkdir -p "$GENOME_DIR"
-
-# ==== Step 1: Generate genome index ====
-#echo "Generating genome index..."
-#/home/aghavidel/STAR/source/STAR  --runThreadN "$THREADS" \
-#     --runMode genomeGenerate \
-#     --genomeDir "$GENOME_DIR" \
-#     --genomeFastaFiles "$GENOME_FA" \
-#     --genomeSAindexNbases 14
-
-echo "Current time: $(date)"
-
-# ==== Step 2: Run STAR alignment ====
-echo "Running STAR alignment... thread=8"
-mkdir -p "$(dirname "$OUT_PREFIX")"
-time /home/aghavidel/STAR/source/STAR --runThreadN "$THREADS" \
-     --genomeDir "$GENOME_DIR" \
-     --readFilesIn $FASTQ \
-     --outFileNamePrefix "$OUT_PREFIX" \
+echo "Running STAR alignment... thread=${THREADS}"
+time "${STAR_EXEC}" --runThreadN "$THREADS" \
+     --genomeDir "$GENOME_INDEX" \
+     --readFilesIn $READ_FASTQ \
+     --outFileNamePrefix "$OUT_DIR" \
      --outFilterMultimapNmax 20 \
      --outSAMtype SAM
 
-#echo "STAR run complete."
+echo "STAR run complete."
 
 echo "Current time: $(date)"
