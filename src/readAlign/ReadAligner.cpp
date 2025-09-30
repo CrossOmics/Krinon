@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <chrono>
 #include <mutex>
+#include <fcntl.h>
 #include <sstream>
 #include "ReadFile.h"
 #include <iomanip>
