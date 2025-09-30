@@ -101,10 +101,13 @@ namespace rna {
         return true;
 
     }
-    void ReadAligner::processReadFile(ReadFile& file,FILE* outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
+    void ReadAligner::processReadFile(ReadFile& file,int outFile,std::ofstream& logFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed) {
 
         std::stringstream outputBuffer((std::string()));
-        int outputBufferSize = 10000;
+        int64_t outputBufferSize = 50000000;
+        int64_t outputBufferPadding = 1000000;
+        outputBufferArray = new char[outputBufferSize + outputBufferPadding];
+        int64_t nowOutputBufferArrayEnd = 0;
         int outputBufferCnt = 0;
 
 
@@ -121,7 +124,7 @@ namespace rna {
             auto startTime = std::chrono::high_resolution_clock::now();
             seedMapping->processRead(read);
 
-            auto alignEndTime = std::chrono::high_resolution_clock::now();
+            //auto alignEndTime = std::chrono::high_resolution_clock::now();
 
             stitchingManagement->processAlignments(seedMapping->aligns,seedMapping->alignNum,read);
 
@@ -142,7 +145,7 @@ namespace rna {
                         t.isPaired = file.readType == ReadFile::paired;
                         std::string s = t.outputSam(*read, stitchingManagement->numGoodTranscripts_);
                         //fprintf(outFile,s.c_str(),s.length());
-                        outputBuffer << s;
+                        /*outputBuffer << s;
                         ++outputBufferCnt;
                         if (outputBufferCnt >= outputBufferSize) {
                             std::string outputStr = outputBuffer.str();
@@ -152,6 +155,16 @@ namespace rna {
                             outputLock.unlock();
                             outputBuffer.str(std::string());
                             outputBufferCnt = 0;
+                        }*/
+                        int l = s.length(); 
+                        strcpy(outputBufferArray + nowOutputBufferArrayEnd,s.c_str());
+                        nowOutputBufferArrayEnd += l;
+                        if (nowOutputBufferArrayEnd >= outputBufferSize){
+                            outputLock.lock();
+                            write(outFile,outputBufferArray,nowOutputBufferArrayEnd);
+                            outputLock.unlock();
+                            nowOutputBufferArrayEnd = 0;
+
                         }
                     }
                 }
@@ -159,7 +172,7 @@ namespace rna {
 
 
             stitchingManagement->clear();
-            auto stitchEndTime = std::chrono::high_resolution_clock::now();
+            //auto stitchEndTime = std::chrono::high_resolution_clock::now();
 
 
 
@@ -191,20 +204,28 @@ namespace rna {
 
         }
 
-        if (outputBufferCnt > 0) {
+        if (nowOutputBufferArrayEnd > 0){
+            outputLock.lock();
+            write(outFile,outputBufferArray,nowOutputBufferArrayEnd);
+            outputLock.unlock();
+            nowOutputBufferArrayEnd = 0;
+
+        }
+
+        /*if (outputBufferCnt > 0) {
             outputLock.lock();
             fprintf(outFile, outputBuffer.str().c_str(), outputBuffer.str().length());
             outputLock.unlock();
             outputBuffer.str(std::string());
             outputBufferCnt = 0;
-        }
+        }*/
+
+
+        delete[] outputBufferArray;
 
          if (threadId == 0){
-
                 int64_t nowTotalRead = 0;
-                for (int i = 0; i<file.threadNum; ++i){
-                    nowTotalRead += file.threadReadCount[i];
-                }
+                for (int i = 0; i<file.threadNum; ++i) nowTotalRead += file.threadReadCount[i];
                 auto nowTime = std::chrono::high_resolution_clock::now();
                 
                 previousProgressReportTime = nowTime;
@@ -222,7 +243,7 @@ namespace rna {
 
 
 
-    }
+    };
 
 
-}
+};

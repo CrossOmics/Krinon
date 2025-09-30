@@ -35,6 +35,7 @@ namespace rna {
             int nowReadInd;
             int nowQueueSize{0};
             bool queueEmpty{true};
+            char* outputBufferArray;
 
             std::vector<std::array<std::string, 4>> lines1;
             std::vector<std::array<std::string, 4>> lines2;
@@ -54,13 +55,13 @@ namespace rna {
         ReadAligner(const GenomeIndex& gInPre, int tId = 0) : genomeIndexPrefix(gInPre), threadId(tId) {
             seedMapping = std::make_unique<SeedMapping>( genomeIndexPrefix,SeedMappingConfig());
             stitchingManagement = std::make_unique<StitchingManagement>(StitchingConfig(), gInPre);
-            inputBufferSize = 30;
+            inputBufferSize = 80000;
             lines1.resize(inputBufferSize);
             lines2.resize(inputBufferSize);
         }
 
         bool loadReadFromFastq(ReadFile& file);
-        void processReadFile(ReadFile& file,FILE* outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed);
+        void processReadFile(ReadFile& file,int outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed);
     };
 }
 #endif //RNAALIGNREFACTORED_READALIGNER_H
