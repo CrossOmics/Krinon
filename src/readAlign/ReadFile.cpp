@@ -34,7 +34,7 @@ namespace rna {
     }
 
     void ReadFile::openFiles(const std::string &filename1, const std::string &filename2) {
-        int64_t inputBufferSize = 32*1024*1024;
+        int64_t inputBufferSize = 30000000;
         readFileBuffer = new char[inputBufferSize];
         readFile = std::ifstream(filename1);
         readFile.rdbuf()->pubsetbuf(readFileBuffer, inputBufferSize);

@@ -591,7 +591,7 @@ namespace rna {
 
 
         // recalculate LCP
-        std::vector<uint16_t> &LCP = genomeIndex.longestCommonPrefix_;
+        std::vector<uint8_t> &LCP = genomeIndex.longestCommonPrefix_;
 
         LCP.resize(saLength, 0);
         PackedArray rk;
@@ -608,8 +608,8 @@ namespace rna {
             }
             if (k > 0) k--;
             while (genome.sequence_[i + k] == genome.sequence_[sa.get(j - 1) + k]) k++;
-            if (k < std::numeric_limits<uint16_t>::max()) LCP[j] = k;
-            else LCP[j] = std::numeric_limits<uint16_t>::max();
+            if (k < std::numeric_limits<uint8_t>::max()) LCP[j] = k;
+            else LCP[j] = std::numeric_limits<uint8_t>::max();
         }
 
 
@@ -641,7 +641,8 @@ namespace rna {
             if (nowHashInsert != prevHashInsert) {
                 if (prevHashInsert != -1) {
                     for (int32_t j = prevHashInsert + 1; j <= nowHashInsert; ++j) {
-                        genomeIndex.patternMerMap_[j].leftSAIndex += nowShift;
+                        int64_t nowLeftSAIndex = genomeIndex.patternMerMap_.get(j,KMER_INDEX_LEFT_SA_INDEX);
+                        genomeIndex.patternMerMap_.set(j,KMER_INDEX_LEFT_SA_INDEX,nowLeftSAIndex + nowShift);
                     }
                     //rebuild secondary index for prevHashInsert
                     genomeIndex.buildKMerMapSingle(prevHashInsert);
@@ -651,18 +652,20 @@ namespace rna {
             }
             ++nowShift;
             if (length == MER_LENGTH) {
-                genomeIndex.patternMerMap_[nowHashInsert].upperRange++;
+                int64_t nowUpperRange = genomeIndex.patternMerMap_.get(nowHashInsert,KMER_INDEX_UPPER_RANGE);
+                genomeIndex.patternMerMap_.set(nowHashInsert,KMER_INDEX_UPPER_RANGE,nowUpperRange + 1);
             }
-            int32_t originalLength = genomeIndex.patternMerMap_[nowHashInsert].length;
+            int32_t originalLength = genomeIndex.patternMerMap_.get(nowHashInsert,KMER_INDEX_LENGTH);
             if (originalLength < length) {
-                genomeIndex.patternMerMap_[nowHashInsert].length = length;
+                genomeIndex.patternMerMap_.set(nowHashInsert,KMER_INDEX_LENGTH,length);
             }
 
         }
 
         if (prevHashInsert != -1) {
             for (int32_t j = prevHashInsert + 1; j < genomeIndex.MER_NUM; ++j) {
-                genomeIndex.patternMerMap_[j].leftSAIndex += nowShift;
+                int64_t nowLeftSAIndex = genomeIndex.patternMerMap_.get(j,KMER_INDEX_LEFT_SA_INDEX);
+                genomeIndex.patternMerMap_.set(j,KMER_INDEX_LEFT_SA_INDEX,nowLeftSAIndex + nowShift);
             }
             // rebuild secondary index for prevHashInsert
             genomeIndex.buildKMerMapSingle(prevHashInsert);

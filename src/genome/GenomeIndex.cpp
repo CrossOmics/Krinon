@@ -7,6 +7,14 @@
 namespace rna {
     GenomeIndex::GenomeIndex(Genome &g) : genome(std::make_unique<Genome>(g)) {
         setConfig(GenomeIndexConfig());
+        int64_t l = genome->originalGenomeLength;
+        int bitsNeeded = 0;
+        while (l > 0) {
+            l >>= 1;
+            ++bitsNeeded;
+        }
+        ++bitsNeeded; // two strands
+        patternMerMap_ = PackedIndexArray({KMER_INDEX_LENGTH_BITS, KMER_INDEX_UPPER_RANGE_BITS, bitsNeeded});
 
     }
 
@@ -45,10 +53,10 @@ namespace rna {
         genomeLength = genome->sequence_.length();
         genome->sequence_ = genome->sequence_ + revSeq + "#########################"; // add padding characters
         size_t reservedLength = 0;
-        if (config.insertSJ){
+        if (config.insertSJ) {
             reservedLength += config.limitSjdbInsertN * config.sjdbLength * 2 + 1;
         }
-        if (config.insertSecondPass){
+        if (config.insertSecondPass) {
             reservedLength += config.limitSjdbInsertN * config.sjdbLength * 2 + 1;
         }
         genome->originalGenomeLength = genome->sequence_.length();
@@ -57,7 +65,8 @@ namespace rna {
 
 
         std::cout << "finished building suffix array\n";
-        patternMerMap_.resize(MER_NUM);
+        //patternMerMap_.resize(MER_NUM);
+        patternMerMap_.init(MER_NUM);
         longestCommonPrefix_.resize(suffixArray.length() + reservedLength, 0);
         buildLCP();
         std::cout << "finished building LCP\n";
@@ -73,7 +82,7 @@ namespace rna {
 
 
         PackedArray rk;
-        PackedArray& sa = suffixArray.sa_;
+        PackedArray &sa = suffixArray.sa_;
         rk.init(suffixArray.fullLength_, sa.getWordLengthBits());
         for (size_t i = 0; i < suffixArray.fullLength_; ++i) rk.set(i, 0);
         for (size_t i = 0; i < sa.length(); ++i) rk.set(sa.get(i), i);
@@ -86,8 +95,8 @@ namespace rna {
             }
             if (k > 0) k--;
             while (genome->sequence_[i + k] == genome->sequence_[sa.get(j - 1) + k]) k++;
-            if (k < std::numeric_limits<uint16_t>::max()) longestCommonPrefix_[j] = k;
-            else longestCommonPrefix_[j] = std::numeric_limits<uint16_t>::max();
+            if (k < std::numeric_limits<uint8_t>::max()) longestCommonPrefix_[j] = k;
+            else longestCommonPrefix_[j] = std::numeric_limits<uint8_t>::max();
         }
     }
 
@@ -153,7 +162,7 @@ namespace rna {
                 --length;
                 hash >>= 2; // remove the last two bits
             }
-            patternMerMap_[i].length = length;
+            patternMerMap_.set(i, KMER_INDEX_LENGTH, length);
         }
     }
 
@@ -163,32 +172,41 @@ namespace rna {
         const std::string &text_ = genome->sequence_;
         const PackedArray &sa_ = suffixArray.sa_;
         int64_t prevHash = -1;
+        //initialize
+        for (int64_t i = 0; i < MER_NUM - 1; ++i) {
+            patternMerMap_.set(i, KMER_INDEX_LEFT_SA_INDEX, -1);
+            patternMerMap_.set(i, KMER_INDEX_UPPER_RANGE, -1);
+        }
         for (int64_t i = 0; i < sa_.length(); ++i) {
             int64_t hash = encodeKMer(text_.substr(sa_.get(i), MER_LENGTH), MER_LENGTH);
             if (hash > prevHash) {
-                if (prevHash != -1 && patternMerMap_[prevHash].upperRange == -1)
-                    patternMerMap_[prevHash].upperRange = (int32_t) (i - 1 - patternMerMap_[prevHash].leftSAIndex);
+                if (prevHash != -1 && patternMerMap_.get(prevHash, KMER_INDEX_UPPER_RANGE) == -1)
+                    patternMerMap_.set(prevHash, KMER_INDEX_UPPER_RANGE,
+                                       (i - 1 - patternMerMap_.get(prevHash, KMER_INDEX_LEFT_SA_INDEX)));
                 prevHash = hash;
             }
             if (hash == -1) {
-                if (prevHash != -1 && patternMerMap_[prevHash].upperRange == -1)
-                    patternMerMap_[prevHash].upperRange = (int32_t) (i - 1 - patternMerMap_[prevHash].leftSAIndex);
+                if (prevHash != -1 && patternMerMap_.get(prevHash, KMER_INDEX_UPPER_RANGE) == -1)
+                    patternMerMap_.set(prevHash, KMER_INDEX_UPPER_RANGE,
+                                       (i - 1 - patternMerMap_.get(prevHash, KMER_INDEX_LEFT_SA_INDEX)));
             }
-            if (patternMerMap_[hash].leftSAIndex == -1)
-                patternMerMap_[hash].leftSAIndex = i;
+            if (patternMerMap_.get(hash, KMER_INDEX_LEFT_SA_INDEX) == -1)
+                patternMerMap_.set(hash, KMER_INDEX_LEFT_SA_INDEX, i);
 
         }
 
-        if (prevHash != -1 && patternMerMap_[prevHash].upperRange == -1)
-            patternMerMap_[prevHash].upperRange = (int32_t) (sa_.length() - 1 - patternMerMap_[prevHash].leftSAIndex);
+        if (prevHash != -1 && patternMerMap_.get(prevHash, KMER_INDEX_UPPER_RANGE) == -1)
+            patternMerMap_.set(prevHash, KMER_INDEX_UPPER_RANGE,
+                               (sa_.length() - 1 - patternMerMap_.get(prevHash, KMER_INDEX_LEFT_SA_INDEX)));
 
         int64_t prevRightBound = 0;
 
         for (int64_t i = 0; i < MER_NUM - 1; ++i) {
-            if (patternMerMap_[i].length < MER_LENGTH) {
-                patternMerMap_[i].leftSAIndex = prevRightBound + 1;
+            if (patternMerMap_.get(i, KMER_INDEX_LENGTH) < MER_LENGTH) {
+                patternMerMap_.set(i, KMER_INDEX_LEFT_SA_INDEX, prevRightBound + 1);
             } else {
-                prevRightBound = patternMerMap_[i].leftSAIndex + patternMerMap_[i].upperRange;
+                prevRightBound =
+                        patternMerMap_.get(i, KMER_INDEX_LEFT_SA_INDEX) + patternMerMap_.get(i, KMER_INDEX_UPPER_RANGE);
 
             }
 
@@ -306,8 +324,9 @@ namespace rna {
         int64_t lStart = split.length / iStart;
 
         bool fullMatch = false;
-        for(int dir = 0; dir <= 1; ++dir){
-            int64_t splitReadStart = dir == 0 ? split.readStart : (readSeq[0].length() - split.readStart - split.length);
+        for (int dir = 0; dir <= 1; ++dir) {
+            int64_t splitReadStart =
+                    dir == 0 ? split.readStart : (readSeq[0].length() - split.readStart - split.length);
             for (int i = 0; i < iStart; ++i) {
                 int64_t nowMappedLength = i * lStart;
                 do {
@@ -315,7 +334,7 @@ namespace rna {
 
 
                     if (split.length - nowMappedLength < MER_LENGTH && split.length - nowMappedLength != 0) {
-                        if (split.length -nowMappedLength <= 5) break; // too short to align
+                        if (split.length - nowMappedLength <= 5) break; // too short to align
                         matchStats = find(readSeq[dir].substr(splitReadStart + split.length - MER_LENGTH, MER_LENGTH));
                         if (matchStats.count > 0) {
                             int posToInsert = -1;
@@ -409,7 +428,6 @@ namespace rna {
         }
 
 
-
         return 0;
     }
 
@@ -445,12 +463,11 @@ namespace rna {
         //write suffix array index
         logFile << config.kMerSize << " " << config.twoDirections << "\n";
 
-        logFile << patternMerMap_.size() << "\n";
-        saIndexFile.write(reinterpret_cast<const char *>(patternMerMap_.data()),
-                          patternMerMap_.size() * sizeof(MatchResultStored));
+
+        patternMerMap_.writeToFile(saIndexFile, logFile);
         logFile << longestCommonPrefix_.size() << "\n";
         saIndexFile.write(reinterpret_cast<const char *>(longestCommonPrefix_.data()),
-                          longestCommonPrefix_.size() * sizeof(uint16_t));
+                          longestCommonPrefix_.size() * sizeof(uint8_t));
         logFile << extendIndexHash.size() << "\n";
         saIndexFile.write(reinterpret_cast<const char *>(extendIndexHash.data()),
                           extendIndexHash.size() * sizeof(uint32_t));
@@ -506,16 +523,13 @@ namespace rna {
         setConfig(GenomeIndexConfig{config.kMerSize,
                                     config.twoDirections});
 
-        int64_t patternMerMapSize;
-        logFile >> patternMerMapSize;
-        patternMerMap_.resize(patternMerMapSize);
-        saIndexFile.read(reinterpret_cast<char *>(patternMerMap_.data()),
-                         patternMerMapSize * sizeof(MatchResultStored));
+
+        patternMerMap_.loadFromFile(saIndexFile, logFile);
         int64_t lcpSize;
         logFile >> lcpSize;
         longestCommonPrefix_.resize(lcpSize);
         saIndexFile.read(reinterpret_cast<char *>(longestCommonPrefix_.data()),
-                         lcpSize * sizeof(uint16_t));
+                         lcpSize * sizeof(uint8_t));
         int64_t extendIndexHashSize;
         logFile >> extendIndexHashSize;
         extendIndexHash.resize(extendIndexHashSize, 0);
@@ -527,16 +541,16 @@ namespace rna {
         saIndexFile.close();
     }
 
-    void GenomeIndex::buildKMerMapSingle(int64_t h){
-        int64_t nowLeftSAIndex = patternMerMap_[h].leftSAIndex;
-        int64_t num = patternMerMap_[h].upperRange;
+    void GenomeIndex::buildKMerMapSingle(int64_t h) {
+        int64_t nowLeftSAIndex = patternMerMap_.get(h, KMER_INDEX_LEFT_SA_INDEX);
+        int64_t num = patternMerMap_.get(h, KMER_INDEX_UPPER_RANGE);
         int indNum = config.extendAlternativeByte / 4;
         if (num > 16) {
             // 4 Bytes per index
             for (int j = 0; j < indNum; ++j) {
                 int length = 16;
                 uint64_t index = suffixArray[nowLeftSAIndex +
-                                                     j * num * 4 / config.extendAlternativeByte];
+                                             j * num * 4 / config.extendAlternativeByte];
                 uint64_t hash = 0;
 
                 for (int k = 0; k < length; ++k) {
@@ -580,8 +594,9 @@ namespace rna {
 
             int64_t leftHash = hash << ((MER_LENGTH - l) * 2);
             int64_t rightHash = leftHash | ((1 << (2 * (MER_LENGTH - l))) - 1);
-            size_t leftSAIndex = patternMerMap_[leftHash].leftSAIndex;
-            size_t rightSAIndex = patternMerMap_[rightHash].leftSAIndex + patternMerMap_[rightHash].upperRange;
+            size_t leftSAIndex = patternMerMap_.get(leftHash, KMER_INDEX_LEFT_SA_INDEX);
+            size_t rightSAIndex = patternMerMap_.get(rightHash, KMER_INDEX_LEFT_SA_INDEX) +
+                                  patternMerMap_.get(rightHash, KMER_INDEX_UPPER_RANGE);
 
             return {l, rightSAIndex - leftSAIndex + 1, leftSAIndex, rightSAIndex};
         }
@@ -589,13 +604,14 @@ namespace rna {
         // now, find the max matching prefix through the k-mer map
 
         int64_t hash = encodeKMer(pattern.substr(0, MER_LENGTH), MER_LENGTH);
-        int l = patternMerMap_[hash].length;
+        int l = patternMerMap_.get(hash, KMER_INDEX_LENGTH);
         if (l < MER_LENGTH || pattern.length() == MER_LENGTH) {
             int64_t leftHash = hash >> ((MER_LENGTH - l) * 2);
             leftHash = leftHash << ((MER_LENGTH - l) * 2);
             int64_t rightHash = leftHash | ((1 << (2 * (MER_LENGTH - l))) - 1);
-            size_t leftSAIndex = patternMerMap_[leftHash].leftSAIndex;
-            size_t rightSAIndex = patternMerMap_[rightHash].leftSAIndex + patternMerMap_[rightHash].upperRange;
+            size_t leftSAIndex = patternMerMap_.get(leftHash, KMER_INDEX_LEFT_SA_INDEX);
+            size_t rightSAIndex = patternMerMap_.get(rightHash, KMER_INDEX_LEFT_SA_INDEX) +
+                                  patternMerMap_.get(rightHash, KMER_INDEX_UPPER_RANGE);
             if (rightSAIndex - leftSAIndex + 1 > 10000) {
                 return {0, 0, 0, 0};
             } else {
@@ -608,13 +624,12 @@ namespace rna {
             }
             return {l, rightSAIndex - leftSAIndex + 1, leftSAIndex, rightSAIndex};
         } else {
-            size_t lBound = patternMerMap_[hash].leftSAIndex;
-            size_t rBound = patternMerMap_[hash].leftSAIndex + patternMerMap_[hash].upperRange + 1;
-            int64_t num = patternMerMap_[hash].upperRange;
+            size_t lBound = patternMerMap_.get(hash, KMER_INDEX_LEFT_SA_INDEX);
+            int64_t num = patternMerMap_.get(hash, KMER_INDEX_UPPER_RANGE);
+            size_t rBound = lBound + num + 1;
 
-            if (num <= 16) {
-                return getMatchStatsLCP(pattern, lBound, rBound, l);
-            }
+
+            if (num <= 16) return getMatchStatsLCP(pattern, lBound, rBound, l);
             const int64_t extendIndexHashBase = hash * config.extendAlternativeByte / 4;
             int64_t remainingLength = pattern.length() - MER_LENGTH;
 
@@ -671,31 +686,28 @@ namespace rna {
 
                 return getMatchStatsLCP(pattern, lBound, rBound, l);
             }
-            if (num > 16) {
-                uint32_t h = encodeKMer(pattern.substr(l, 16), 16);
-                size_t left = 0, right = config.extendAlternativeByte / 4;
-                while (right - left > 1) {
-                    size_t mid = (left + right) / 2;
-                    if (extendIndexHash[extendIndexHashBase + mid] < h) left = mid;
-                    else if (extendIndexHash[extendIndexHashBase + mid] > h) right = mid;
-                    else {
-                        // exact match
-                        left = right = mid;
-                        while (left > 0 && extendIndexHash[extendIndexHashBase + left] == h)
-                            --left;
-                        while (right < config.extendAlternativeByte / 4 &&
-                               extendIndexHash[extendIndexHashBase + right] == h)
-                            ++right;
-                        break;
-                    }
-                }
-                rBound = lBound + right * num * 4 / config.extendAlternativeByte;
-                if (right != config.extendAlternativeByte / 4) ++rBound;
-                lBound += left * num * 4 / config.extendAlternativeByte;
 
-            } else {
-                // no need to search
+
+            uint32_t h = encodeKMer(pattern.substr(l, 16), 16);
+            size_t left = 0, right = config.extendAlternativeByte / 4;
+            while (right - left > 1) {
+                size_t mid = (left + right) / 2;
+                if (extendIndexHash[extendIndexHashBase + mid] < h) left = mid;
+                else if (extendIndexHash[extendIndexHashBase + mid] > h) right = mid;
+                else {
+                    // exact match
+                    left = right = mid;
+                    while (left > 0 && extendIndexHash[extendIndexHashBase + left] == h)
+                        --left;
+                    while (right < config.extendAlternativeByte / 4 &&
+                           extendIndexHash[extendIndexHashBase + right] == h)
+                        ++right;
+                    break;
+                }
             }
+            rBound = lBound + right * num * 4 / config.extendAlternativeByte;
+            if (right != config.extendAlternativeByte / 4) ++rBound;
+            lBound += left * num * 4 / config.extendAlternativeByte;
 
 
             auto matchStats = getMatchStatsLCP(pattern, lBound, rBound, l);

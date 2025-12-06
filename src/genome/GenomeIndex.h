@@ -3,6 +3,16 @@
 #include "Genome.h"
 #include "SuffixArray.h"
 #include "SJDB.h"
+#include "../utils/PackedIndexArray.h"
+
+#define KMER_INDEX_LENGTH_BITS 4  // max support k-mer length is 15
+#define KMER_INDEX_UPPER_RANGE_BITS 24 // max support upper range is 2^24-1 = 16777215
+
+
+#define KMER_INDEX_LENGTH 0
+#define KMER_INDEX_UPPER_RANGE 1
+#define KMER_INDEX_LEFT_SA_INDEX 2
+
 
 namespace rna{
     struct GenomeIndexConfig{
@@ -45,11 +55,15 @@ namespace rna{
 
         GTF *gtf{nullptr};
 
+        PackedIndexArray patternMerMap_;
 
-        std::vector<MatchResultStored> patternMerMap_;  // stored result of k-mer search
-        std::vector<uint16_t> longestCommonPrefix_; // actually, the height array of the suffix array, LCP (i,i-1)
+        //std::vector<MatchResultStored> patternMerMap_;  // stored result of k-mer search
+        std::vector<uint8_t> longestCommonPrefix_; // actually, the height array of the suffix array, LCP (i,i-1)
 
-        // another way to accelerate the search
+
+
+
+        //accelerate the search
         std::vector<uint32_t> extendIndexHash;
 
 

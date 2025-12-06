@@ -6,7 +6,7 @@
 #include "../utils/types.h"
 #include <vector>
 #include "SeedMapping.h"
-#include "StitchingManagement.h"
+#include "Stitching.h"
 #include <memory>
 #include <fstream>
 #include <sstream>
@@ -21,13 +21,9 @@ namespace rna {
 
             const GenomeIndex& genomeIndexPrefix;
             std::unique_ptr<SeedMapping> seedMapping; // seedMapping, get alignments of the read
-            std::unique_ptr<StitchingManagement> stitchingManagement;// stitch the previously obtained alignments into transcripts
+            std::unique_ptr<Stitching> stitchingManagement;// stitch the previously obtained alignments into transcripts
 
             ReadPtr read; // now processing Read
-            std::vector<TranscriptPtr> bestTranscripts;// the transcripts generated from the read
-            std::vector<SJDBOutput> sjdbCandidates; // splice junction candidates from the read
-
-
 
             int threadId{0};
             int readCount{0};
@@ -35,7 +31,6 @@ namespace rna {
             int nowReadInd;
             int nowQueueSize{0};
             bool queueEmpty{true};
-            char* outputBufferArray;
 
             std::vector<std::array<std::string, 4>> lines1;
             std::vector<std::array<std::string, 4>> lines2;
@@ -54,14 +49,14 @@ namespace rna {
         }
         ReadAligner(const GenomeIndex& gInPre, int tId = 0) : genomeIndexPrefix(gInPre), threadId(tId) {
             seedMapping = std::make_unique<SeedMapping>( genomeIndexPrefix,SeedMappingConfig());
-            stitchingManagement = std::make_unique<StitchingManagement>(StitchingConfig(), gInPre);
-            inputBufferSize = 80000;
+            stitchingManagement = std::make_unique<Stitching>(StitchingConfig(), gInPre);
+            inputBufferSize = 30;
             lines1.resize(inputBufferSize);
             lines2.resize(inputBufferSize);
         }
 
         bool loadReadFromFastq(ReadFile& file);
-        void processReadFile(ReadFile& file,int outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed);
+        void processReadFile(ReadFile& file,FILE* outFile,std::ofstream& alignStatusFile,std::ofstream& alignProgressFile,std::mutex& outputLock,std::mutex& alignStatusLock,std::mutex& alignProgressLock,int& totalReadsProcessed);
     };
 }
 #endif //RNAALIGNREFACTORED_READALIGNER_H

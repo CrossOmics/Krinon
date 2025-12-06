@@ -65,7 +65,6 @@ namespace rna {
 
         void loadFromFile(std::ifstream &in, std::ifstream &logIn);
 
-
     };
 }
 

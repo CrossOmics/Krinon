@@ -10,10 +10,12 @@ add_executable(RNAAlignRefactored   main.cpp
                                     genome/SJDB.cpp
                                     readAlign/ReadAligner.cpp
                                     readAlign/SeedMapping.cpp
-                                    readAlign/StitchingManagement.cpp
+        readAlign/Stitching.cpp
                                     readAlign/ReadAlignMultiThread.cpp
                                     readAlign/ReadFile.cpp
                                     utils/PackedArray.cpp
                                     utils/argparse.hpp
                                     utils/Parameters.cpp
+                                    utils/PackedIndexArray.cpp
+                                    utils/MemoryMappedFile.hpp
                                     )

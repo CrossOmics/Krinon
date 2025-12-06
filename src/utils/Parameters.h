@@ -8,7 +8,7 @@
 #include "../readAlign/ReadAligner.h"
 #include "../readAlign/ReadAlignMultiThread.h"
 #include "../readAlign/SeedMapping.h"
-#include "../readAlign/StitchingManagement.h"
+#include "../readAlign/Stitching.h"
 namespace rna{
     class Parameters {
     public:
