@@ -38,7 +38,15 @@ namespace RefactorProcessing {
 
         // parameters
         void setParam(const Parameters& P);
+
+        // genome generate
+        void loadFromFasta(const std::string &file);
+
+        // seed search
+
+
         // modify data
+        void modifyGenome();
 
 
         // input/output

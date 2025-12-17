@@ -3,6 +3,8 @@
 #include "readAlign/ReadAlignMultiThread.h"
 #include "utils/Parameters.h"
 
+#include "genomeRefactored/GenomeIndex.h"
+
 
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
