@@ -9,8 +9,8 @@ namespace rna {
         // record errors during processing
         // not using try-catch for performance consideration
     private:
-        std::string errorFileName_;
-        std::ofstream errorFile_;
+        static std::string errorFileName_;
+        static std::ofstream errorFile_;
     public:
         void setParam(const RefactorProcessing::Parameters& P);
         void reportError(const std::string& errorMsg);
@@ -18,8 +18,8 @@ namespace rna {
     class WarningRecord {
         // record warnings during processing
     private:
-        std::string warningFileName_;
-        std::ofstream warningFile_;
+        static std::string warningFileName_;
+        static std::ofstream warningFile_;
     public:
         void setParam(const RefactorProcessing::Parameters& P);
         void reportWarning(const std::string& warningMsg);

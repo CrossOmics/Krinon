@@ -22,4 +22,11 @@ add_executable(RNAAlignRefactored   main.cpp
                                     log/ErrorRecord.cpp
                                     utilsRefactored/timeFunctions.hpp
                                     utilsRefactored/PackedArray.cpp
+                                    io/Parameters.cpp
+                                    genomeRefactored/Genome.cpp
+                                    genomeRefactored/GenomeIndex_build.cpp
+                                    genomeRefactored/GenomeIndex_find.cpp
+                                    genomeRefactored/SuffixArray.cpp
+                                    genomeRefactored/SuffixArray_build_SAIS.cpp
+                                    genomeRefactored/SuffixArrayKMerMap.cpp
                                     )

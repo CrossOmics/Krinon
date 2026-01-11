@@ -92,4 +92,20 @@ namespace RefactorProcessing {
         return 0;
     }
 
+    void PackedArray::buildFromReservedArray(uint64_t *array, uint32_t wordLengthBits, uint64_t length,uint64_t reservedLength) {
+        reservedLength_ = reservedLength;
+        arrayLength_ = length + reservedLength;
+        wordNum_ = length;
+        wordLengthBits_ = wordLengthBits;
+        wordCompLength_ = 64 - wordLengthBits_;
+        bitMask_ = (~0ULL) >> wordCompLength_;
+        data = array;
+        allocated = false;
+    }
+
+    void PackedArray::setLength(int64_t length) {
+        wordNum_ = length;
+        arrayLength_ = ((wordNum_ + reservedLength_) * wordLengthBits_ + 63) / 64;
+    }
+
 }

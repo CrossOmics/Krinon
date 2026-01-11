@@ -5,6 +5,7 @@
 #include "../genomeRefactored/GenomeIndex.h"
 
 namespace RefactorProcessing {
+
     class Stitching {
         // stitch alignment fragments
     private:

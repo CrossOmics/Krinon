@@ -5,6 +5,7 @@
 #include "../io/Parameters.h"
 #include <vector>
 #include "SuffixArray.h"
+#include "SuffixArrayKMerMap.h"
 #include "SJDB.h"
 #include "../utilsRefactored/defines.h"
 #include "../utilsRefactored/seqFunctions.h"
@@ -12,7 +13,7 @@
 
 namespace RefactorProcessing {
     // seed search results
-    struct Align{
+    struct Align {
         int64_t readPos;
         int64_t leftSAIndex;
         int64_t rightSAIndex;
@@ -20,8 +21,16 @@ namespace RefactorProcessing {
         int64_t rep;
         int direction; // 0 for forward, 1 for reverse
         int iFragment; // 0 or 1, for paired-end reads
+        Align() { length = 0; rep = 0;}
     };
 
+    struct Split {
+        int splitStart;
+        int length;
+        int readLength;
+        std::string_view forward;
+        std::string_view reverse;
+    };
 
 
     class GenomeIndex {
@@ -29,11 +38,16 @@ namespace RefactorProcessing {
         // configs
 
         int kMerSize_;
+        uint64_t kMerNum_;
         std::string additionalIndexType_; // Now only LCP and pre-calculated search results. Reserved for future expansion.
+        int extendAlternativeByte_;
+
+        //todo add to Parameters
+        int maxAlignNum = 1000; // max alignments to return for one search
+
+
 
         bool needInsertSJ_;
-
-        int extendAlternativeByte_;
         int sjdbOverhang_;
         int limitSjdbInsertN_;
         // data
@@ -44,13 +58,18 @@ namespace RefactorProcessing {
 
 
         //todo replace with PackedIndexArray
-        std::vector<uint32_t> patternMerMap_; // stored result of k-mer search
+        SuffixArrayKMerMap patternMerMap_; // stored result of k-mer search
 
         std::vector<uint8_t> longestCommonPrefix_; // LCP
         std::vector<uint32_t> extendedIndexHash_; // pre-calculated search results to accelerate search
 
 
+
+        inline bool insertAlign(std::vector<Align> &results, const Align &a) const;
+
     public:
+
+
         GenomeIndex();
 
         ~GenomeIndex();
@@ -61,23 +80,29 @@ namespace RefactorProcessing {
         // genome Generate Process
         void loadGenome();
 
-        void build(const Genome &genome);
+        void build();
 
-        void buildKmerMap(const Genome &genome);
+        void buildKmerMap();
 
-        void buildLCP(const Genome &genome);
+        void buildLCP();
+
+        void buildExtendedIndexHashSingle(int64_t h);
+
+        void buildExtendedIndexHash();
 
         // for additional sequences like SJDB
         void modify();
 
         // search
-        void find(const std::string &seq,std::vector<Align> &results) const;
+        void find(const Split pattern, std::vector<Align> &results) const;
 
-        void findMMP(const std::string &seq) const;
+        Align findMMP(const std::string_view &seq) const;
 
-        void findMMP_GetRange(const std::string &seq, int64_t rangeLeft,int64_t rangeRight, size_t matchedLength) const;
+        void
+        findMMP_GetRange(const std::string &seq, int64_t rangeLeft, int64_t rangeRight, size_t matchedLength) const;
 
-        inline std::pair<size_t,bool> matchGenomeSeq(const std::string &pattern ,size_t matchedLength, size_t pos) const;
+        inline std::pair<size_t, bool>
+        matchGenomeSeq(const std::string &pattern, size_t matchedLength, size_t pos) const;
 
 
         // input/output
