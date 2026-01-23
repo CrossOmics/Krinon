@@ -11,8 +11,6 @@ namespace RefactorProcessing {
         int64_t length;
         int64_t mate1Length; // for paired-end reads
         int64_t mate2Length;
-
-
     };
 }
 #endif //RNAALIGNREFACTORED_READ_H

@@ -25,7 +25,7 @@ namespace RefactorProcessing {
     };
 
     struct Split {
-        int splitStart;
+        int splitStart;//position in read, forward strand
         int length;
         int readLength;
         std::string_view forward;
@@ -40,7 +40,8 @@ namespace RefactorProcessing {
         int kMerSize_;
         uint64_t kMerNum_;
         std::string additionalIndexType_; // Now only LCP and pre-calculated search results. Reserved for future expansion.
-        int extendAlternativeByte_;
+        int extendHashTableByte_; // Bytes of each hash's extend table
+        int extendHashTableNum_; // Number of elements in each hash's extend table
 
         //todo add to Parameters
         int maxAlignNum = 1000; // max alignments to return for one search
@@ -98,11 +99,10 @@ namespace RefactorProcessing {
 
         Align findMMP(const std::string_view &seq) const;
 
-        void
-        findMMP_GetRange(const std::string &seq, int64_t rangeLeft, int64_t rangeRight, size_t matchedLength) const;
+        Align findMMP_GetRange(const std::string_view &seq, int64_t rangeLeft, int64_t rangeRight, size_t matchedLength) const;
 
         inline std::pair<size_t, bool>
-        matchGenomeSeq(const std::string &pattern, size_t matchedLength, size_t pos) const;
+        matchGenomeSeq(const std::string_view &pattern, size_t matchedLength, size_t pos) const;
 
 
         // input/output

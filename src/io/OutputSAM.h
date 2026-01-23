@@ -16,7 +16,7 @@ namespace RefactorProcessing {
 
         void setParam(const Parameters &P);
 
-        void outputOneSAM(std::string &samRecord);
+        void outputSingleSAM(std::string &samRecord);
     };
 }
 #endif //RNAALIGNREFACTORED_OUTPUTSAM_H

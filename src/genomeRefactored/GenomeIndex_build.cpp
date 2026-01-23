@@ -10,7 +10,8 @@ namespace RefactorProcessing {
     void GenomeIndex::setParam(const Parameters &P) {
         kMerSize_ = P.kMerSize;
         kMerNum_ = (1ULL << (kMerSize_ * 2)) + 1;
-        extendAlternativeByte_ = P.extendAlternativeByte;
+        extendHashTableByte_ = P.extendAlternativeByte;
+        extendHashTableNum_ = extendHashTableByte_/4;
         needInsertSJ_ = P.insertSJ;
         sjdbOverhang_ = P.sjdbOverhang;
         limitSjdbInsertN_ = P.limitSjdbInsertN;
@@ -166,7 +167,7 @@ namespace RefactorProcessing {
 
 
     void GenomeIndex::buildExtendedIndexHash() {
-        extendedIndexHash_.resize(kMerNum_ * extendAlternativeByte_/4,0);
+        extendedIndexHash_.resize(kMerNum_ * extendHashTableByte_ / 4, 0);
         for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             buildExtendedIndexHashSingle(i);
         }
@@ -175,13 +176,13 @@ namespace RefactorProcessing {
     void GenomeIndex::buildExtendedIndexHashSingle(int64_t h) {
         int64_t nowLeftSAIndex = patternMerMap_.get(h,patternMerMap_.INDEX_LEFT_SA_INDEX);
         int64_t num = patternMerMap_.get(h, patternMerMap_.INDEX_UPPER_RANGE);
-        int indNum = extendAlternativeByte_ /4;
+        int indNum = extendHashTableByte_ / 4;
 
         if (num > 16) {
             for (int j = 0; j < indNum; ++j) {
                 int length = 16;
                 uint64_t index = suffixArray_[nowLeftSAIndex +
-                                              j * num * 4 / extendAlternativeByte_];
+                                              j * num * 4 / extendHashTableByte_];
                 uint64_t hash = 0;
 
                 for (int k = 0; k < length; ++k) {

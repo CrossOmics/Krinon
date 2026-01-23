@@ -29,4 +29,7 @@ add_executable(RNAAlignRefactored   main.cpp
                                     genomeRefactored/SuffixArray.cpp
                                     genomeRefactored/SuffixArray_build_SAIS.cpp
                                     genomeRefactored/SuffixArrayKMerMap.cpp
-                                    )
+                                    genomeRefactored/SJDB.cpp
+                                    readAlignRefactored/Stitching.cpp
+                                    readAlignRefactored/SeedMapping.cpp
+)
