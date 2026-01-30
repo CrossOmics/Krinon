@@ -21,6 +21,7 @@ namespace RefactorProcessing {
         int64_t rep;
         int direction; // 0 for forward, 1 for reverse
         int iFragment; // 0 or 1, for paired-end reads
+        bool isAnchor; // whether this align is an anchor
         Align() { length = 0; rep = 0;}
     };
 
@@ -51,11 +52,7 @@ namespace RefactorProcessing {
         bool needInsertSJ_;
         int sjdbOverhang_;
         int limitSjdbInsertN_;
-        // data
 
-        Genome genome_;// owned genome
-
-        SuffixArray suffixArray_;
 
 
         //todo replace with PackedIndexArray
@@ -69,7 +66,11 @@ namespace RefactorProcessing {
         inline bool insertAlign(std::vector<Align> &results, const Align &a) const;
 
     public:
+    // data
 
+        Genome genome_;// owned genome
+
+        SuffixArray suffixArray_;
 
         GenomeIndex();
 

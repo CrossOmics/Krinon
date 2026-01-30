@@ -9,12 +9,12 @@
 namespace RefactorProcessing {
     class AdditionalGenomeSegment;
     class GenomeIndex;
+    struct Chromosome {
+        std::string name;
+        int64_t start;
+        int64_t length;
+    };
     class Genome{
-        struct Chromosome {
-            std::string name;
-            int64_t start;
-            int64_t length;
-        };
         // ONLY store basic genome information
     private:
 
@@ -25,9 +25,6 @@ namespace RefactorProcessing {
 
 
         // data
-        std::string sequence_;
-        size_t genomeLength_;// length of one strand, original genome length. That is, no additional sequence such as sjdb;
-        std::vector<Chromosome> chromosomes_;
         std::map<int64_t,int64_t> chromosomeMapStartToIndex_;
 
         //additional genome sequence data such as sjdb
@@ -38,6 +35,10 @@ namespace RefactorProcessing {
 
 
     public:
+
+        std::vector<Chromosome> chromosomes_;
+        std::string sequence_;
+        size_t genomeLength_;// length of one strand, original genome length. That is, no additional sequence such as sjdb;
 
         friend GenomeIndex;
 

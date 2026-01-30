@@ -6,6 +6,7 @@
 #include "../io/Parameters.h"
 #include "Transcript.h"
 #include "../utilsRefactored/seqFunctions.h"
+#include "Read.h"
 
 namespace RefactorProcessing {
     struct WindowAlign{
@@ -13,7 +14,8 @@ namespace RefactorProcessing {
         int64_t genomeStart{0};
         int64_t length{0};
         bool isAnchor{false};
-        int64_t isj{-1};// annotation index
+        int direction{0};
+        int isj{-1};// annotation index
         int iFragment{0};
 
         bool operator<(const WindowAlign &other) const {
@@ -57,6 +59,23 @@ namespace RefactorProcessing {
 
 
     class Window {
+    private:
+
+
+        int numFirstFragAligns;
+        int numSecondFragAligns;
+    public:
+        WindowAlign* aligns; // todo try vector
+        int chrIndex;
+        int direction;
+        int numAnchors;
+        int numAligns;
+        int startBin;
+        int endBin;
+        int minLengthWhenFull;
+
+        bool assignAlignment(const WindowAlign& a,int maxSeedPerWindows);
+
 
     };
 
@@ -113,19 +132,25 @@ namespace RefactorProcessing {
     public:
 
         // data
-        std::vector<Align> alignments_;//  alignments to be stitched
+        const GenomeIndex& genomeIndex_;
+
+        std::vector<Align>* alignments_;//  alignments to be stitched
 
         std::vector<WindowAlign> windowAlignments_;
 
         std::vector<Window> windows_;
 
-        std::vector<int32_t> winBinMap_[2];
+        std::vector<int> winBinMap_[2];
 
         std::vector<StitchRecord> stitchRecords_;// stitching records between window-alignments
 
         std::vector<ExtendRecord> extendRecords_[2];// extension records, forward & backward
 
-        Stitching(){};
+        Read* read_;
+
+        std::vector<Transcript> transcripts_;
+
+        Stitching(const GenomeIndex& g):genomeIndex_(g){};
         ~Stitching(){};
 
         // parameters
@@ -134,19 +159,34 @@ namespace RefactorProcessing {
         // stitching process
         void init();
 
-        void stitchAlignments();
+        std::pair<WindowAlign,WindowAlign> convertAlignToPositiveStrandWindowAlign(const Align& a, int ind) const;
 
-        void createWindows(const std::vector<Align>& alignments);
+        void process(std::vector<Align>& aligns, Read* read);
 
-        void assignAlignmentsToWindows();
+        void identifyAnchors();
 
-        void convertAlignment();// convert alignment to window-alignment
+        void createWindowFromAnchor(const WindowAlign& anchor);
+
+        void createWindows();
+
+        void stitchWindowAlign(const Window& window);
+
+        void extendWindowAlign(const Window& window);
+
+        void stitchPaired(const Window& window);
+
+        void stitchSingle(const Window& window);
 
         void assignAlignment();
 
         void stitchWindow_SingleEnd();
 
         void stitchWindow_PairedEnd();
+
+        // clear data
+        void clear();
+
+        void refreshWinBinMap();
 
     };
 };

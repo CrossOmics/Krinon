@@ -10,7 +10,12 @@ namespace RefactorProcessing {
     };
 
     struct SpliceJunction{
-
+        int type{0};//canon
+        int64_t length{0};
+        bool isAnnotated{false};
+        int64_t shiftLeft{0};
+        int64_t shiftRight{0};
+        int64_t sjStrand{0};
     };
 
 

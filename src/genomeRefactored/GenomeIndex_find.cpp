@@ -74,6 +74,7 @@ namespace RefactorProcessing {
                     }
                     Align matchedAlign = findMMP(split.substr(matchedLength));
                     matchedAlign.readPos = nowMappedLength + splitStart;
+                    matchedAlign.direction = dir;
                     length = matchedAlign.length;
                     if (length == 0) break;
                     nowMappedLength += length;
