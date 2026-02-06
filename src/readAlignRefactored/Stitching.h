@@ -8,6 +8,8 @@
 #include "../utilsRefactored/seqFunctions.h"
 #include "Read.h"
 
+#define transcriptMinScore -100000
+
 namespace RefactorProcessing {
     struct WindowAlign{
         int64_t readStart{0};
@@ -36,8 +38,9 @@ namespace RefactorProcessing {
             CROSS_FRAGMENTS
         } type{CANNOT_STITCH};
         int spliceJunctionType{0}; //todo 0: none, 1: GT-AG, 2: GC-AG, 3: AT-AC, 4: non-canonical, to be merged with type?
+
         int64_t score{0}; // including the gap penalty
-        int matches{0}; // ADDITIONAL matches, matches contributed by window aligns not included
+        int matches{0}; // ADDITIONAL matches, including the latter alignment's matches
         int mismatches{0}; //ADDITIONAL mismatches. same as above
         int64_t formerExonLengthShift{0}; // length extension of the former exon
         int64_t latterExonLengthShift{0}; // length extension of the latter exon
@@ -61,9 +64,6 @@ namespace RefactorProcessing {
     class Window {
     private:
 
-
-        int numFirstFragAligns;
-        int numSecondFragAligns;
     public:
         WindowAlign* aligns; // todo try vector
         int chrIndex;
@@ -73,16 +73,54 @@ namespace RefactorProcessing {
         int startBin;
         int endBin;
         int minLengthWhenFull;
-
+        int numFirstFragAligns;
+        int numSecondFragAligns;
         bool assignAlignment(const WindowAlign& a,int maxSeedPerWindows);
 
 
     };
 
     class RawTranscript {
-
     public:
-        Transcript convertToTranscript();
+        int previousTranscriptId;
+        int newAlignId;
+        int score;
+        int mismatches;
+        int matches;
+        int numExon;
+        int extendedLengthForward; //extension 5' end
+        int extendedLengthBackward; // extension 3' end
+        // todo maybe no need
+        int StartAlignId; // to calc max extension
+
+        void init(const Window& win,int i,int matchScore);
+
+    };
+
+    class RawTranscriptPaired{
+    public:
+        int previousTranscriptId;
+        int newAlignId;
+        int score;
+        int mismatches;
+        int matches;
+        int numExon;
+        int StartAlignId; // to calc max extension
+        int iFragment;
+        void init(const Window& win,int i,int matchScore);
+
+
+    };
+
+    struct fragmentMatchRecord{
+        int fragId0;
+        int fragId1;
+        // L0 -> F1 -> F0 -> L1
+        int extendLengthFormer0;
+        int extendLengthLatter0; // extend inside
+        int extendLengthFormer1; // extend inside
+        int extendLengthLatter1;
+        int score;
     };
 
     class Stitching {
@@ -106,6 +144,9 @@ namespace RefactorProcessing {
         int multimapScoreRange_;
         double outFilterScoreMinOverLRead_;
         double outFilterMatchMinOverLRead_;
+
+        int outFilterScoreMin_;// calculated based on read length
+        int outFilterMatchMin_;
 
 
         // scoring
@@ -148,7 +189,18 @@ namespace RefactorProcessing {
 
         Read* read_;
 
+        std::vector<RawTranscript> rawTranscripts_;
+
+        std::vector<RawTranscriptPaired> rawTranscriptsPaired_;
+
         std::vector<Transcript> transcripts_;
+
+        std::vector<fragmentMatchRecord> fragmentMatchRecords_;
+
+
+        int maxTranscriptScore_;
+
+        int numGoodTranscripts_;
 
         Stitching(const GenomeIndex& g):genomeIndex_(g){};
         ~Stitching(){};
@@ -169,19 +221,24 @@ namespace RefactorProcessing {
 
         void createWindows();
 
-        void stitchWindowAlign(const Window& window);
+        Transcript convertRawTranscriptToTranscript(const RawTranscript& rt,const Window& win,int startAlignId);
 
-        void extendWindowAlign(const Window& window);
+        // examine splice junction compatibility
+        bool examineSpliceJunction(const Window& win, const RawTranscriptPaired& t0, const RawTranscriptPaired& t1);
+
+
+        inline std::pair<int, int64_t>
+        checkJunctionMotif(const std::string &genomeSeq, int64_t leftPos, int64_t rightPos);
+
+        void stitchWindowAlign(const Window& window, const WindowAlign& a1, const WindowAlign& a2, StitchRecord& record);
+
+        void extendWindowAlign(const Window& window,const WindowAlign& a,ExtendRecord& res,int extendDir);
 
         void stitchPaired(const Window& window);
 
         void stitchSingle(const Window& window);
 
         void assignAlignment();
-
-        void stitchWindow_SingleEnd();
-
-        void stitchWindow_PairedEnd();
 
         // clear data
         void clear();

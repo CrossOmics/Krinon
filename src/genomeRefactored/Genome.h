@@ -64,7 +64,7 @@ namespace RefactorProcessing {
 
         // input/output
         void writeChrInfo(const std::string& dirOut) const;
-        int writeToFile(const std::string& dirName);
+        int writeToFile(const std::string& dirName) const;
         int loadFromFile(const std::string& dirName);
 
 

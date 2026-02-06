@@ -31,4 +31,20 @@ namespace RefactorProcessing {
                 return -1; // For 'N' or any other character
         }
     }
+
+    bool writeString(std::ofstream &ofs, const std::string &s) {
+        uint32_t n = static_cast<uint32_t>(s.size());
+        ofs.write(reinterpret_cast<const char*>(&n), sizeof(n));
+        if (n) ofs.write(s.data(), n);
+        return bool(ofs);
+    }
+
+     bool readString(std::ifstream &ifs, std::string &s) {
+        uint32_t n;
+        ifs.read(reinterpret_cast<char*>(&n), sizeof(n));
+        if (!ifs) return false;
+        s.resize(n);
+        if (n) ifs.read(&s[0], n);
+        return bool(ifs);
+    }
 }

@@ -204,4 +204,125 @@ namespace RefactorProcessing {
     }
 
 
+
+    int GenomeIndex::writeToFile(const std::string &fileName) const {
+        std::ofstream ofs(fileName, std::ios::binary);
+        if (!ofs.is_open()) return -1;
+
+        // header: magic + version
+        const char magic[4] = {'G','I','D','X'};
+        ofs.write(magic, 4);
+        uint32_t version = 1;
+        ofs.write(reinterpret_cast<const char*>(&version), sizeof(version));
+
+        // write simple members
+        ofs.write(reinterpret_cast<const char*>(&kMerSize_), sizeof(kMerSize_));
+        ofs.write(reinterpret_cast<const char*>(&kMerNum_), sizeof(kMerNum_));
+
+        writeString(ofs, additionalIndexType_);
+
+        ofs.write(reinterpret_cast<const char*>(&extendHashTableByte_), sizeof(extendHashTableByte_));
+        ofs.write(reinterpret_cast<const char*>(&extendHashTableNum_), sizeof(extendHashTableNum_));
+
+        ofs.write(reinterpret_cast<const char*>(&maxAlignNum), sizeof(maxAlignNum));
+
+        ofs.write(reinterpret_cast<const char*>(&needInsertSJ_), sizeof(needInsertSJ_));
+        ofs.write(reinterpret_cast<const char*>(&sjdbOverhang_), sizeof(sjdbOverhang_));
+        ofs.write(reinterpret_cast<const char*>(&limitSjdbInsertN_), sizeof(limitSjdbInsertN_));
+
+        // write vectors
+        uint64_t lcpSize = static_cast<uint64_t>(longestCommonPrefix_.size());
+        ofs.write(reinterpret_cast<const char*>(&lcpSize), sizeof(lcpSize));
+        if (lcpSize) ofs.write(reinterpret_cast<const char*>(longestCommonPrefix_.data()), lcpSize * sizeof(uint8_t));
+
+        uint64_t extSize = static_cast<uint64_t>(extendedIndexHash_.size());
+        ofs.write(reinterpret_cast<const char*>(&extSize), sizeof(extSize));
+        if (extSize) ofs.write(reinterpret_cast<const char*>(extendedIndexHash_.data()), extSize * sizeof(uint32_t));
+
+        if (!ofs) return -2;
+
+        // write complex objects into separate files for speed and modularity
+        {
+            std::string gfile = fileName + ".gen";
+            // assumes Genome has writeToFile(const std::string&)
+            if (genome_.writeToFile(gfile) != 0) return -3;
+        }
+        {
+            std::string sfile = fileName + ".suf";
+            if (suffixArray_.writeToFile(sfile) != 0) return -4;
+        }
+        {
+            std::string kfile = fileName + ".kmap";
+            if (patternMerMap_.writeToFile(kfile) != 0) return -5;
+        }
+
+        return 0;
+    }
+
+    int GenomeIndex::loadFromFile(const std::string &fileName) {
+        std::ifstream ifs(fileName, std::ios::binary);
+        if (!ifs.is_open()) return -1;
+
+        // header validation
+        char magic[4];
+        ifs.read(magic, 4);
+        if (!ifs) return -2;
+        if (!(magic[0]=='G' && magic[1]=='I' && magic[2]=='D' && magic[3]=='X')) return -3;
+
+        uint32_t version;
+        ifs.read(reinterpret_cast<char*>(&version), sizeof(version));
+        if (!ifs) return -4;
+        // if needed, handle different versions
+
+        // read simple members
+        ifs.read(reinterpret_cast<char*>(&kMerSize_), sizeof(kMerSize_));
+        ifs.read(reinterpret_cast<char*>(&kMerNum_), sizeof(kMerNum_));
+
+        if (!readString(ifs, additionalIndexType_)) return -5;
+
+        ifs.read(reinterpret_cast<char*>(&extendHashTableByte_), sizeof(extendHashTableByte_));
+        ifs.read(reinterpret_cast<char*>(&extendHashTableNum_), sizeof(extendHashTableNum_));
+
+        ifs.read(reinterpret_cast<char*>(&maxAlignNum), sizeof(maxAlignNum));
+
+        ifs.read(reinterpret_cast<char*>(&needInsertSJ_), sizeof(needInsertSJ_));
+        ifs.read(reinterpret_cast<char*>(&sjdbOverhang_), sizeof(sjdbOverhang_));
+        ifs.read(reinterpret_cast<char*>(&limitSjdbInsertN_), sizeof(limitSjdbInsertN_));
+
+        // read vectors
+        uint64_t lcpSize = 0;
+        ifs.read(reinterpret_cast<char*>(&lcpSize), sizeof(lcpSize));
+        if (!ifs) return -6;
+        longestCommonPrefix_.clear();
+        longestCommonPrefix_.resize(static_cast<size_t>(lcpSize));
+        if (lcpSize) ifs.read(reinterpret_cast<char*>(longestCommonPrefix_.data()), lcpSize * sizeof(uint8_t));
+        if (!ifs) return -7;
+
+        uint64_t extSize = 0;
+        ifs.read(reinterpret_cast<char*>(&extSize), sizeof(extSize));
+        if (!ifs) return -8;
+        extendedIndexHash_.clear();
+        extendedIndexHash_.resize(static_cast<size_t>(extSize));
+        if (extSize) ifs.read(reinterpret_cast<char*>(extendedIndexHash_.data()), extSize * sizeof(uint32_t));
+        if (!ifs) return -9;
+
+        // load complex objects from their files
+        {
+            std::string gfile = fileName + ".gen";
+            if (genome_.loadFromFile(gfile) != 0) return -10;
+        }
+        {
+            std::string sfile = fileName + ".suf";
+            if (suffixArray_.loadFromFile(sfile) != 0) return -11;
+        }
+        {
+            std::string kfile = fileName + ".kmap";
+            if (patternMerMap_.loadFromFile(kfile) != 0) return -12;
+        }
+
+        return 0;
+    }
+
+
+
 }

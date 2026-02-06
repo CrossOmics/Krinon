@@ -105,7 +105,7 @@ namespace rna {
 
         }
 
-        void writeToFile(std::ostream &out,std::ofstream &logOut) const {
+        int writeToFile(std::ostream &out,std::ofstream &logOut) const {
             logOut << "IndexData:\n";
             logOut << structLengthBits_ << " " << length_ << " " << dataLength_ << " " << lessThanLL <<" " <<elementBitLengths_.size() <<"\n";
             for (int bitLength: elementBitLengths_) {
@@ -124,7 +124,7 @@ namespace rna {
 
             out.write(reinterpret_cast<const char *>(data_), dataLength_ * sizeof(uint64_t));
         }
-        void loadFromFile(std::istream &in, std::ifstream &logIn) {
+        int loadFromFile(std::istream &in, std::ifstream &logIn) {
             std::string n;
             int elementNum;
             logIn >> n; // Index Data:

@@ -30,9 +30,9 @@ namespace RefactorProcessing {
 
         int64_t get(uint64_t index, int elementIndex) const;
 
-        void writeToFile(std::ostream &out,std::ofstream &logOut) const;
+        int writeToFile(const std::string &fileName) const;
 
-        void loadFromFile(std::ifstream &in, std::ifstream &logIn);
+        int loadFromFile(const std::string &fileName);
 
 
 

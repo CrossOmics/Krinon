@@ -35,6 +35,10 @@ namespace RefactorProcessing {
         void buildTraditional(const std::string &seq);
         void buildSAIS(const std::string &seq);
 
+        int writeToFile(const std::string &fileName) const;
+
+        int loadFromFile(const std::string &fileName);
+
     };
 };
 #endif //RNAALIGNREFACTORED_SUFFIXARRAYR_H

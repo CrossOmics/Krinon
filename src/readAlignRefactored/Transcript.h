@@ -26,7 +26,7 @@ namespace RefactorProcessing {
         std::string CIGAR;
         int strand{0};
         int64_t matched{0};
-        int64_t unmatched{0};
+        int64_t mismatched{0};
         int64_t nIns{0};
         int64_t nDel{0};
         std::vector<Exon> exons;
@@ -37,6 +37,8 @@ namespace RefactorProcessing {
         int64_t posInChr{0};
         int64_t score{0};
         int64_t readLength{0};
+
+        std::string getCIGAR() const;
 
 
     };

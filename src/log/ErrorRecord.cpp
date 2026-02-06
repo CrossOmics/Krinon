@@ -4,6 +4,11 @@
 
 
 namespace rna{
+    std::string ErrorRecord::errorFileName_;
+    std::ofstream ErrorRecord::errorFile_;
+
+    std::string WarningRecord::warningFileName_;
+    std::ofstream WarningRecord::warningFile_;
     void ErrorRecord::setParam(const RefactorProcessing::Parameters& P){
         errorFileName_ = P.outErrorFile;
         errorFile_ = std::ofstream(errorFileName_, std::ios::app);
