@@ -24,6 +24,8 @@ add_executable(RNAAlignRefactored   main.cpp
                                     utilsRefactored/PackedArray.cpp
                                     io/Parameters.cpp
                                     io/MemoryMappedFile.hpp
+                                    io/ReadScanner.cpp
+                                    io/OutputSAM.cpp
                                     genomeRefactored/Genome.cpp
                                     genomeRefactored/GenomeIndex_build.cpp
                                     genomeRefactored/GenomeIndex_find.cpp
@@ -34,4 +36,5 @@ add_executable(RNAAlignRefactored   main.cpp
                                     readAlignRefactored/Stitching.cpp
                                     readAlignRefactored/SeedMapping.cpp
                                     readAlignRefactored/Transcript.cpp
+                                    readAlignRefactored/ReadMerger.cpp
 )

@@ -112,6 +112,8 @@ namespace RefactorProcessing {
 
     };
 
+
+
     struct fragmentMatchRecord{
         int fragId0;
         int fragId1;
@@ -198,6 +200,7 @@ namespace RefactorProcessing {
         std::vector<fragmentMatchRecord> fragmentMatchRecords_;
 
 
+
         int maxTranscriptScore_;
 
         int numGoodTranscripts_;
@@ -223,8 +226,6 @@ namespace RefactorProcessing {
 
         Transcript convertRawTranscriptToTranscript(const RawTranscript& rt,const Window& win,int startAlignId);
 
-        // examine splice junction compatibility
-        bool examineSpliceJunction(const Window& win, const RawTranscriptPaired& t0, const RawTranscriptPaired& t1);
 
 
         inline std::pair<int, int64_t>

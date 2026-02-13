@@ -1115,6 +1115,7 @@ namespace RefactorProcessing {
     }
 
     void Stitching::stitchPaired(const Window &window) {
+        // notice: only handle the case without overlapping
         int numAligns = window.numAligns;
         int numFrag0 = window.numFirstFragAligns;
         int numFrag1 = window.numSecondFragAligns;
@@ -1230,7 +1231,7 @@ namespace RefactorProcessing {
 
         //try to combine fragments
         //simple enumeration
-        for (int i0 = 0; i0 < numFrag0; ++i0){
+        /*for (int i0 = 0; i0 < numFrag0; ++i0){
             for (int j1 = numFrag1; j1 <numAligns; ++j1){
                 for (int j0 = i0; j0 < numFrag0; ++j0){
                     for (int i1 = numFrag1; i1 < numAligns; ++i1){
@@ -1252,7 +1253,61 @@ namespace RefactorProcessing {
                     }
                 }
             }
-        }
+        }*/
+
+
+        /*for (int j0 = 0; j0 < numFrag0; ++j0){
+            for (int i1 = numFrag0; i1 <numAligns; ++i1){
+                // detect overlap
+                const WindowAlign &a0 = window.aligns[j0]; // the last align of fragment 0
+                const WindowAlign &a1 = window.aligns[i1]; // the first align of fragment 1
+                int endAlign0 = a0.genomeStart + a0.length;
+                if (endAlign0 >= a1.genomeStart){
+                    // overlap, handle splice junction compatibility
+                    // find the best compatible pair covering the overlap
+
+                    // first, find a window align in fragment0 that overlaps with a1
+                    // only need to check those before j0
+                    for (int k = j0; k >= 0; --k){
+
+                    }
+                }
+
+            }
+        }*/
+
+
+
+        /*for (int i0 = 0; i0 < numFrag0; ++i0){
+            for (int j0 = i0; j0 < numFrag0; ++j0){
+                //Fragment 0 aligns begin with i0 and end with j0
+                const RawTranscriptPaired &t0 = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i0,j0 - i0,numFrag0,numFrag1,0)];
+                if (t0.score < 0) continue; // no valid transcript
+                int endAlignI0 = window.aligns[i0].genomeStart + window.aligns[j0].length;
+                int endAlignJ0 = window.aligns[j0].genomeStart + window.aligns[j0].length;
+                // now find a compatible transcript in fragment 1
+                for (int i1 = numFrag1; i1 < numAligns; ++i1){
+                    int startAlignI1 = window.aligns[i1].genomeStart;
+                    int endAlignI1 = window.aligns[i1].genomeStart + window.aligns[i1].length;
+                    if (endAlignI1 < window.aligns[i0].genomeStart) continue; // too left
+
+                }
+            }
+        }*/
+
+        /*for (int j0 = 0;j0 < numFrag0; ++j0){
+            for (int i1 = numFrag1;i1 <numAligns; ++i1){
+                // find the best compatible pair if overlap
+
+                const WindowAlign &a0 = window.aligns[j0]; // the last align of fragment 0
+                const WindowAlign &a1 = window.aligns[i1]; // the first align of fragment 1
+                int startGenomePos = a1.genomeStart;
+                int endGenomePos = a0.genomeStart + a0.length;
+                if (endGenomePos <= startGenomePos) continue; // no overlap, skip
+            }
+        }*/
+
+
 
 
 

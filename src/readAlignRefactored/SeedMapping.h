@@ -14,12 +14,14 @@ namespace RefactorProcessing {
 
         //data
         std::vector<Split> splits_;
-        GenomeIndex genomeIndex_;
+        const GenomeIndex& genomeIndex_;
         Read* read_;
 
 
     public:
         std::vector<Align> aligns_;
+
+        SeedMapping(GenomeIndex& g):genomeIndex_(g){};
 
         void setParam(const Parameters& P);
 

@@ -2,6 +2,7 @@
 #define RNAALIGNREFACTORED_OUTPUTSAM_H
 #include <string>
 #include "Parameters.h"
+#include "MemoryMappedFile.hpp"
 
 namespace RefactorProcessing {
     class OutputSAM{
@@ -10,6 +11,9 @@ namespace RefactorProcessing {
         // configs
         std::string outputFileName_;
         bool sortByCoordinate_; // for now, keep it false, will implement later
+
+        //data
+
     public:
         OutputSAM(){};
         ~OutputSAM(){};
