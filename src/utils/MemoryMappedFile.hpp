@@ -68,6 +68,8 @@ namespace rna
             mapPtr_ = nullptr;
             fd_ = -1;
         }
+
+
     };
 } // namespace rna
 #endif // RNAALIGNMENT_MEMORY_MAPPED_OUTPUT_H

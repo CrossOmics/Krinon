@@ -59,6 +59,17 @@ namespace RefactorProcessing {
             mapPtr_ = nullptr;
             fd_ = -1;
         }
+
+        // enlarge the file and remap if newSize exceeds current size
+        void ensureSize(int64_t newSize) {
+            if (newSize <= size_) return; // no need to resize
+            void *new_ptr = mremap(mapPtr_, size_, newSize, MREMAP_MAYMOVE);
+            if (new_ptr == MAP_FAILED) {
+                throw std::runtime_error("Failed to remap memory to new size");
+            }
+            mapPtr_ = static_cast<char*>(new_ptr);
+            size_ = newSize;
+        }
     };
 }
 #endif //RNAALIGNREFACTORED_MEMORYMAPPEDFILER_HPP

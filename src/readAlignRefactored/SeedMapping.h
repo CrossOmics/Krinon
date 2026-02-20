@@ -21,7 +21,7 @@ namespace RefactorProcessing {
     public:
         std::vector<Align> aligns_;
 
-        SeedMapping(GenomeIndex& g):genomeIndex_(g){};
+        SeedMapping(const GenomeIndex& g):genomeIndex_(g){};
 
         void setParam(const Parameters& P);
 

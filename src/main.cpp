@@ -1,9 +1,11 @@
 
-#include "readAlign/ReadAligner.h"
-#include "readAlign/ReadAlignMultiThread.h"
-#include "utils/Parameters.h"
-
+//#include "readAlign/ReadAligner.h"
+//#include "readAlign/ReadAlignMultiThread.h"
+//#include "utils/Parameters.h"
 #include "genomeRefactored/GenomeIndex.h"
+#include "io/ReadScanner.h"
+#include "io/OutputSAM.h"
+#include "readAlignRefactored/ReadAligner.h"
 
 
 int main(int argc, char* argv[]){
@@ -25,7 +27,7 @@ int main(int argc, char* argv[]){
     // a timestamp file, each line is the time (us) taken to align and stitch a read
     std::string outputMode = "all"; // "all" or "test" in test mode, only output the result and time of first 10000 reads
 
-    rna::Parameters P;
+    /*rna::Parameters P;
     P.process(argc,argv);
     std::string mode = P.mode;
     if (mode.empty()) {
@@ -57,7 +59,29 @@ int main(int argc, char* argv[]){
 
         rna::ReadAlignMultiThread readAlignMultiThread(P);
         readAlignMultiThread.processReadFile( P.threads, genomeIndex, false);
+    }*/
+    RefactorProcessing::Parameters Pa;
+    Pa.process(argc,argv);
+    std::string mode = Pa.mode;
+    if (mode.empty()) {
+        std::cout << "Please specify the mode: GenomeGenerate, ReadAlign, both or test" << std::endl;
+
+        exit(0);
+    }
+    if (mode == "GenomeGenerate" || mode == "both") {
+
+        RefactorProcessing::GenomeIndex genomeIndex;
+        genomeIndex.setParam(Pa);
+        genomeIndex.build();
+        genomeIndex.writeToFile(Pa.genomeGenerateFileStoreDir+ "GeIndex");
+    }
+    if (mode == "ReadAlign" || mode == "both") {
+
+        RefactorProcessing::ReadAligner readAligner;
+        readAligner.init(Pa,Pa.workingThreads);
+        readAligner.loadGenome();
+        readAligner.alignReads();
     }
 
 
-};
+}

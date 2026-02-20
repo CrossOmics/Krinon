@@ -21,6 +21,7 @@ namespace RefactorProcessing {
 
         SuffixArray(){
             buildMethod = "SAIS";
+            reservedLength = 0;
         };
         ~SuffixArray(){};
         void build(const std::string &seq);

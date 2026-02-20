@@ -29,8 +29,8 @@ namespace RefactorProcessing {
         int splitStart;//position in read, forward strand
         int length;
         int readLength;
-        std::string_view forward;
-        std::string_view reverse;
+        std::string forward;
+        std::string reverse;
     };
 
 

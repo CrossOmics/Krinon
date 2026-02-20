@@ -23,21 +23,27 @@ namespace RefactorProcessing {
     }
 
     void GenomeIndex::build() {
+        std::cout << "Loading genome...\n" ;
+        loadGenome();
+        std::cout << "Building suffix array...\n" ;
         suffixArray_.build(genome_.sequence_);
-
+        std::cout << "Building LCP array...\n" ;
         buildLCP();
-
+        std::cout << "Building SAI...\n" ;
         buildKmerMap();
-
+        std::cout << "Building extended SAI...\n" ;
         buildExtendedIndexHash();
+        std::cout << "Finished building genome index\n" ;
     }
 
 
     void GenomeIndex::buildLCP() {
-        longestCommonPrefix_.reserve(suffixArray_.length_ + 1);
+
+        longestCommonPrefix_.resize(suffixArray_.length_ + 1);
         PackedArray rk;
-        rk.initialize(suffixArray_.length_, suffixArray_.wordBits_);
-        for (int64_t i = 0; i < suffixArray_.length_; ++i) {
+        size_t sequenceLength = genome_.sequence_.length();
+        rk.initialize(sequenceLength, suffixArray_.wordBits_);
+        for (int64_t i = 0; i < sequenceLength; ++i) {
             rk.setValue(i, 0);
         }
         for (int64_t i = 0; i < suffixArray_.length_; ++i) {
@@ -46,7 +52,7 @@ namespace RefactorProcessing {
 
         //todo optimize: multi-thread
         size_t k = 0;
-        for (int64_t i = 0; i < suffixArray_.length_; ++i) {
+        for (int64_t i = 0; i < sequenceLength; ++i) {
             size_t j = rk[i];
             if (j == 0) {
                 k = 0;
@@ -116,6 +122,7 @@ namespace RefactorProcessing {
         // In fact, length cannot be 0. ATCG all appear in the reference genome.
         // Therefore, we use 0 to show that the k-mer does not appear in the genome.
         // (For the sake of data compression)
+        patternMerMap_.init(kMerNum_);
         for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             int32_t hash = i;
             int32_t length = kMerSize_;
@@ -244,15 +251,14 @@ namespace RefactorProcessing {
         // write complex objects into separate files for speed and modularity
         {
             std::string gfile = fileName + ".gen";
-            // assumes Genome has writeToFile(const std::string&)
             if (genome_.writeToFile(gfile) != 0) return -3;
         }
         {
-            std::string sfile = fileName + ".suf";
+            std::string sfile = fileName + ".sa";
             if (suffixArray_.writeToFile(sfile) != 0) return -4;
         }
         {
-            std::string kfile = fileName + ".kmap";
+            std::string kfile = fileName + ".saI";
             if (patternMerMap_.writeToFile(kfile) != 0) return -5;
         }
 
@@ -312,11 +318,11 @@ namespace RefactorProcessing {
             if (genome_.loadFromFile(gfile) != 0) return -10;
         }
         {
-            std::string sfile = fileName + ".suf";
+            std::string sfile = fileName + ".sa";
             if (suffixArray_.loadFromFile(sfile) != 0) return -11;
         }
         {
-            std::string kfile = fileName + ".kmap";
+            std::string kfile = fileName + ".saI";
             if (patternMerMap_.loadFromFile(kfile) != 0) return -12;
         }
 

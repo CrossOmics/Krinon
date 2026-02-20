@@ -3,6 +3,7 @@
 #include "Stitching.h"
 #include "Read.h"
 #include "Transcript.h"
+#include "../log/ErrorRecord.h"
 
 #define SIMPLE_DELETION -1;
 #define SIMPLE_INSERTION -2;
@@ -49,10 +50,41 @@ namespace RefactorProcessing {
 
     }
 
-    void Stitching::init() {
+    void Stitching::init(std::vector<Align> *a) {
         // allocate memory for data structures based on parameters
-        windows_.reserve(maxWindows_);
-        transcripts_.reserve(transcriptStoredMax_);
+        alignments_ = a;
+        windows_.resize(maxWindows_);
+        transcripts_.resize(transcriptStoredMax_);
+        size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_-1)) + 2;
+        winBinMap_[0].resize(winBinNum,-1);
+        winBinMap_[1].resize(winBinNum,-1);
+        size_t maxStitchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
+        stitchRecords_.resize(maxStitchRecordNum);
+        extendRecords_[0].resize(maxSeedPerWindows_);
+        extendRecords_[1].resize(maxSeedPerWindows_);
+        allSingleExtensionRecord_.resize(maxSeedPerWindows_*2*(1+maxMismatch_));
+        for (int i = 0; i < maxSeedPerWindows_; ++i) {
+            extendRecords_[0][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_.data() + (i * (1 + maxMismatch_));
+            extendRecords_[1][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_.data() + ((i + maxSeedPerWindows_) * (1 + maxMismatch_));
+        }
+        size_t maxRawTranscriptNum = maxSeedPerWindows_ * maxSeedPerWindows_;
+        if(!isPaired_) rawTranscripts_.resize(maxRawTranscriptNum);
+        else rawTranscriptsPaired_.resize(maxRawTranscriptNum);
+        transcripts_.resize(100);
+        if(isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
+
+        resultTranscriptBuffer_ = new char[transcriptStoredMax_ * 5000];
+        resultTranscriptLength_ = 0;
+    }
+
+    Stitching::~Stitching() {
+        delete[] resultTranscriptBuffer_;
+    }
+
+    void Stitching::clear(){
+        refreshWinBinMap();
+        numGoodTranscripts_ = 0;
+        resultTranscriptLength_ = 0;
     }
 
     void Stitching::process(std::vector<RefactorProcessing::Align> &aligns, RefactorProcessing::Read *read) {
@@ -79,6 +111,37 @@ namespace RefactorProcessing {
         }
 
 
+        int trueNumGoodTranscripts = numGoodTranscripts_;
+
+        for (int i = 0; i < numGoodTranscripts_; ++i) {
+            if (transcripts_[i].score < maxTranscriptScore_ - multimapScoreRange_) {
+                trueNumGoodTranscripts = i;
+                break;
+            }
+        }
+
+        if (trueNumGoodTranscripts > outFilterMultimapMax_) {
+            trueNumGoodTranscripts = 0;
+            return;
+        }
+        numGoodTranscripts_ = trueNumGoodTranscripts;
+
+        convertToResult();
+
+        clear();
+
+
+    }
+
+    void Stitching::convertToResult() {
+        resultTranscriptLength_ = 0;
+        for (int i = 0; i < numGoodTranscripts_; ++i) {
+            std::string s = transcripts_[i].convertToSAM(*read_, isPaired_, numGoodTranscripts_);
+            size_t len = s.length();
+            //todo handle buffer overflow
+            std::memcpy(resultTranscriptBuffer_ + resultTranscriptLength_, s.c_str(), len);
+            resultTranscriptLength_ += len;
+        }
     }
 
     std::pair<WindowAlign, WindowAlign>
@@ -822,7 +885,8 @@ namespace RefactorProcessing {
         StartAlignId = i;
     }
 
-    Transcript Stitching::convertRawTranscriptToTranscript(const RawTranscript &rt, const Window &win,int startAlignId) {
+    Transcript
+    Stitching::convertRawTranscriptToTranscript(const RawTranscript &rt, const Window &win, int startAlignId) {
         Transcript t;
         t.strand = win.direction;
         t.score = rt.score;
@@ -837,7 +901,7 @@ namespace RefactorProcessing {
         int numDel = 0;
         // collect alignments
         WindowAlign &lastAlign = win.aligns[rt.newAlignId];
-        t.exons[rt.numExon -1] = Exon{
+        t.exons[rt.numExon - 1] = Exon{
                 .genomeStart = lastAlign.genomeStart,
                 .length = lastAlign.length + rt.extendedLengthBackward,
                 .readStart = lastAlign.readStart
@@ -856,7 +920,7 @@ namespace RefactorProcessing {
                 t.exons[alignPos].length += nowStitch.latterExonLengthShift;
                 t.exons[alignPos].readStart -= nowStitch.latterExonLengthShift;
                 t.genomeStart -= nowStitch.latterExonLengthShift;
-            }else {
+            } else {
                 --alignPos;
                 t.exons[alignPos].genomeStart = nowAlign.genomeStart;
                 t.exons[alignPos].length = nowAlign.length + nowStitch.formerExonLengthShift;
@@ -866,14 +930,16 @@ namespace RefactorProcessing {
                 t.exons[alignPos + 1].readStart -= nowStitch.latterExonLengthShift;
 
                 //calc sj
-                int genomeGap = (t.exons[alignPos + 1].genomeStart) - (t.exons[alignPos].genomeStart + t.exons[alignPos].length);
-                int readGap = (t.exons[alignPos + 1].readStart) - (t.exons[alignPos].readStart + t.exons[alignPos].length);
+                int genomeGap = (t.exons[alignPos + 1].genomeStart) -
+                                (t.exons[alignPos].genomeStart + t.exons[alignPos].length);
+                int readGap =
+                        (t.exons[alignPos + 1].readStart) - (t.exons[alignPos].readStart + t.exons[alignPos].length);
                 int sjGap = genomeGap - readGap; // -ins, +del or sj
 
                 //todo handle sj collecting later
-                t.sj[alignPos] = SpliceJunction {
-                    .type = nowStitch.spliceJunctionType,
-                    .length = sjGap,
+                t.sj[alignPos] = SpliceJunction{
+                        .type = nowStitch.spliceJunctionType,
+                        .length = sjGap,
                 };
             }
 
@@ -889,7 +955,6 @@ namespace RefactorProcessing {
         t.genomeStart = t.exons[0].genomeStart;
         return t;
     }
-
 
 
     void Stitching::stitchSingle(const Window &window) {
@@ -954,7 +1019,8 @@ namespace RefactorProcessing {
                             t.matches = formerT.matches + sr.matches;
                             t.previousTranscriptId = calcRawTranscriptPos(i, j, numAligns);
                             t.newAlignId = i + dist;
-                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP) t.numExon = formerT.numExon;
+                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP)
+                                t.numExon = formerT.numExon;
                             else t.numExon = formerT.numExon + 1;
                         }
                     }
@@ -1029,22 +1095,22 @@ namespace RefactorProcessing {
         }
 
         if (localBestScore > maxTranscriptScore_) maxTranscriptScore_ = localBestScore;
-        else if (localBestScore < std::max(maxTranscriptScore_ - multimapScoreRange_,outFilterScoreMin_)) return;
+        else if (localBestScore < std::max(maxTranscriptScore_ - multimapScoreRange_, outFilterScoreMin_)) return;
         int scoreThreshold = std::max(localBestScore - multimapScoreRange_, outFilterScoreMin_);
 
         // add the good transcript to the result transcript set
 
         std::string chrName = genomeIndex_.genome_.chromosomes_[window.chrIndex].name;
-        int64_t  chrStart = genomeIndex_.genome_.chromosomes_[window.chrIndex].start;
+        int64_t chrStart = genomeIndex_.genome_.chromosomes_[window.chrIndex].start;
 
-        for (int i = 0; i < numAligns; ++i){
-            for (int j = 0; j < numAligns - i; ++j){
-                RawTranscript &t = rawTranscripts_[calcRawTranscriptPos(i,j,numAligns)];
+        for (int i = 0; i < numAligns; ++i) {
+            for (int j = 0; j < numAligns - i; ++j) {
+                RawTranscript &t = rawTranscripts_[calcRawTranscriptPos(i, j, numAligns)];
                 if (t.score < scoreThreshold) continue;
                 if (t.score < outFilterScoreMin_) continue;
                 if (t.matches < outFilterMatchMin_) continue;
 
-                Transcript transcript = convertRawTranscriptToTranscript(t,window,i);
+                Transcript transcript = convertRawTranscriptToTranscript(t, window, i);
                 transcript.chr = chrName;
                 transcript.posInChr = transcript.exons[0].genomeStart - chrStart;
                 transcript.readLength = read_->length;
@@ -1052,9 +1118,9 @@ namespace RefactorProcessing {
 
                 //insert transcript
                 bool alreadyExists = false;
-                for (int iT = 0; iT < numGoodTranscripts_; ++iT){
+                for (int iT = 0; iT < numGoodTranscripts_; ++iT) {
                     if (transcripts_[iT].genomeStart == transcript.genomeStart &&
-                            transcripts_[iT].exons.back().genomeStart +transcripts_[iT].exons.back().length ==
+                        transcripts_[iT].exons.back().genomeStart + transcripts_[iT].exons.back().length ==
                         transcript.exons.back().genomeStart + transcript.exons.back().length &&
                         transcript.CIGAR == transcripts_[iT].CIGAR) {
 
@@ -1067,7 +1133,7 @@ namespace RefactorProcessing {
 
                 // find position to insert
                 int posToInsert = numGoodTranscripts_;
-                if (numGoodTranscripts_ < transcriptStoredMax_){
+                if (numGoodTranscripts_ < transcriptStoredMax_) {
                     ++numGoodTranscripts_;
                     for (posToInsert = numGoodTranscripts_ - 1; posToInsert > 0; --posToInsert) {
                         if (transcripts_[posToInsert - 1].score < t.score ||
@@ -1078,7 +1144,7 @@ namespace RefactorProcessing {
                             break;
                         }
                     }
-                }else {
+                } else {
                     if (transcripts_[posToInsert - 1].score < t.score ||
                         (transcripts_[posToInsert - 1].score == t.score &&
                          transcripts_[posToInsert - 1].matched < t.matches)) {
@@ -1105,13 +1171,18 @@ namespace RefactorProcessing {
         }
 
     }
-    inline int calcPairedRawTranscriptPos(int i, int dist, int numFrag0,int numFrag1,int iFrag) {
+
+    inline int calcPairedRawTranscriptPos(int i, int dist, int numFrag0, int numFrag1, int iFrag) {
         if (iFrag == 0) {
             return i * numFrag0 + dist;
         } else {
             return numFrag0 * numFrag0 + i * numFrag1 + dist;
         }
 
+    }
+
+    void RawTranscriptPaired::init(const Window &win, int i, int matchScore) {
+        //todo fix
     }
 
     void Stitching::stitchPaired(const Window &window) {
@@ -1163,17 +1234,21 @@ namespace RefactorProcessing {
         }
 
         //local DP of each fragment
-        for (int dist = 0; dist <numFrag0; ++dist){
-            for (int i = 0; i< numFrag0;++i){
-                RawTranscriptPaired& t = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i,dist,numFrag0,numFrag1,0)];
+        for (int dist = 0; dist < numFrag0; ++dist) {
+            for (int i = 0; i < numFrag0; ++i) {
+                RawTranscriptPaired &t = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i, dist, numFrag0, numFrag1,
+                                                                                          0)];
                 if (dist == 0) {
-                    t.init(window, i ,MATCH_SCORE_);
+                    t.init(window, i, MATCH_SCORE_);
                     t.iFragment = 0;
-                }else {
+                } else {
                     t.score = transcriptMinScore;
                     t.StartAlignId = i;
                     for (int j = 0; j < dist; ++j) {
-                        const RawTranscriptPaired &formerT = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i,j,numFrag0,numFrag1,0)];
+                        const RawTranscriptPaired &formerT = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i, j,
+                                                                                                              numFrag0,
+                                                                                                              numFrag1,
+                                                                                                              0)];
                         if (formerT.score < 0) continue;
                         const StitchRecord &sr = stitchRecords_[calcStitchRecPos(i + j, i + dist)];
                         if (sr.type == StitchRecord::CANNOT_STITCH) continue;
@@ -1188,7 +1263,8 @@ namespace RefactorProcessing {
                             t.matches = formerT.matches + sr.matches;
                             t.previousTranscriptId = calcRawTranscriptPos(i, j, numAligns);
                             t.newAlignId = i + dist;
-                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP) t.numExon = formerT.numExon;
+                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP)
+                                t.numExon = formerT.numExon;
                             else t.numExon = formerT.numExon + 1;
                         }
                     }
@@ -1196,17 +1272,21 @@ namespace RefactorProcessing {
             }
         }
 
-        for (int dist = 0; dist <numFrag1; ++dist){
-            for (int i = numFrag0; i< numAligns;++i){
-                RawTranscriptPaired& t = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i,dist,numFrag0,numFrag1,0)];
+        for (int dist = 0; dist < numFrag1; ++dist) {
+            for (int i = numFrag0; i < numAligns; ++i) {
+                RawTranscriptPaired &t = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i, dist, numFrag0, numFrag1,
+                                                                                          0)];
                 if (dist == 0) {
-                    t.init(window, i ,MATCH_SCORE_);
+                    t.init(window, i, MATCH_SCORE_);
                     t.iFragment = 0;
-                }else {
+                } else {
                     t.score = transcriptMinScore;
                     t.StartAlignId = i;
                     for (int j = 0; j < dist; ++j) {
-                        const RawTranscriptPaired &formerT = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i,j,numFrag0,numFrag1,0)];
+                        const RawTranscriptPaired &formerT = rawTranscriptsPaired_[calcPairedRawTranscriptPos(i, j,
+                                                                                                              numFrag0,
+                                                                                                              numFrag1,
+                                                                                                              0)];
                         if (formerT.score < 0) continue;
                         const StitchRecord &sr = stitchRecords_[calcStitchRecPos(i + j, i + dist)];
                         if (sr.type == StitchRecord::CANNOT_STITCH) continue;
@@ -1221,7 +1301,8 @@ namespace RefactorProcessing {
                             t.matches = formerT.matches + sr.matches;
                             t.previousTranscriptId = calcRawTranscriptPos(i, j, numAligns);
                             t.newAlignId = i + dist;
-                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP) t.numExon = formerT.numExon;
+                            if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP)
+                                t.numExon = formerT.numExon;
                             else t.numExon = formerT.numExon + 1;
                         }
                     }

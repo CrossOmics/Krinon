@@ -37,4 +37,5 @@ add_executable(RNAAlignRefactored   main.cpp
                                     readAlignRefactored/SeedMapping.cpp
                                     readAlignRefactored/Transcript.cpp
                                     readAlignRefactored/ReadMerger.cpp
+                                    readAlignRefactored/ReadAligner.cpp
 )

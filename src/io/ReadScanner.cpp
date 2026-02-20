@@ -45,11 +45,12 @@ namespace RefactorProcessing{
     }
 
 
-    void ReadScanner::loadFromFastq(char* targetBuffer1,char* targetBuffer2,const int bufferSize) {
+    void ReadScanner::loadFromFastq(char* targetBuffer1,char* targetBuffer2,const size_t bufferSize,size_t& buffer1Length,size_t& buffer2Length) {
         if (bufferSize <= 1) return;
+
         std::lock_guard<std::mutex> lock(readFileLock_);
 
-        auto fillFromMmap = [&](std::unique_ptr<MemoryMappedFile> &mmapFile, size_t &mmapPos, size_t fileSize, char* target) {
+        auto fillFromMmap = [&](std::unique_ptr<MemoryMappedFile> &mmapFile, size_t &mmapPos, size_t fileSize, char* target, size_t& length) {
 
 
             if (!mmapFile || fileSize == 0) {
@@ -94,21 +95,22 @@ namespace RefactorProcessing{
             std::memcpy(target, base + mmapPos, desired);
             if(target) target[desired] = '\0';
             mmapPos += desired;
+            length = desired;
         };
 
         // prefer mmap path if available
         if (mmapFile1_) {
-            fillFromMmap(mmapFile1_, mmapPos1_, fileSize1_, targetBuffer1);
+            fillFromMmap(mmapFile1_, mmapPos1_, fileSize1_, targetBuffer1,buffer1Length);
         }
 
         if (isPairedEnd_) {
             if (mmapFile2_) {
-                fillFromMmap(mmapFile2_, mmapPos2_, fileSize2_, targetBuffer2);
+                fillFromMmap(mmapFile2_, mmapPos2_, fileSize2_, targetBuffer2,buffer2Length);
             }
         }
     }
 
-    void ReadScanner::parseRead(Read &r,const char* readBuffer1,const char* readBuffer2,int& r1Length,int& r2Length){
+    void ReadScanner::parseRead(Read &r,const char* readBuffer1,const char* readBuffer2,size_t& r1Length,size_t& r2Length){
         // parse read from the provided buffers
         // return the number of bytes consumed
 

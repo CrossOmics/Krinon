@@ -3,6 +3,8 @@
 #include "SuffixArray.h"
 #include "../utilsRefactored/seqFunctions.h"
 
+
+
 namespace RefactorProcessing{
     void SuffixArray::build(const std::string &seq) {
         buildSAIS(seq);
@@ -23,11 +25,9 @@ namespace RefactorProcessing{
         // magic + version
         const char magic[4] = {'S','U','F','X'}; // SUFX marker
         ofs.write(magic, 4);
-        uint32_t version = 1;
-        ofs.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
-        // write buildMethod
-        if (!writeString(ofs, buildMethod)) return -2;
+
+
 
         // write numeric members
         ofs.write(reinterpret_cast<const char*>(&reservedLength), sizeof(reservedLength));
@@ -38,9 +38,9 @@ namespace RefactorProcessing{
         ofs.close();
 
         // write packed array to a separate file for speed/modularity
-        std::string packedFile = fileName + ".packed";
+        std::string packedFile = fileName;
 
-        int ret = suffixArray_.writeToFile(packedFile);
+        int ret = suffixArray_.writeToFile(packedFile+".array");
         if (ret != 0) return -4;
 
         return 0;
@@ -55,11 +55,7 @@ namespace RefactorProcessing{
         if (!ifs) return -2;
         if (!(magic[0]=='S' && magic[1]=='U' && magic[2]=='F' && magic[3]=='X')) return -3;
 
-        uint32_t version = 0;
-        ifs.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (!ifs) return -4;
 
-        if (!readString(ifs, buildMethod)) return -5;
 
         ifs.read(reinterpret_cast<char*>(&reservedLength), sizeof(reservedLength));
         ifs.read(reinterpret_cast<char*>(&length_), sizeof(length_));
@@ -68,8 +64,8 @@ namespace RefactorProcessing{
         if (!ifs) return -6;
         ifs.close();
 
-        std::string packedFile = fileName + ".packed";
-        int ret = suffixArray_.loadFromFile(packedFile);
+        std::string packedFile = fileName;
+        int ret = suffixArray_.loadFromFile(packedFile+".array");
         if (ret != 0) return -7;
 
         return 0;

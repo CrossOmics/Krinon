@@ -189,30 +189,36 @@ namespace RefactorProcessing {
 
         std::vector<ExtendRecord> extendRecords_[2];// extension records, forward & backward
 
+        std::vector<ExtendRecord::singleExtendRecord> allSingleExtensionRecord_;// memory pool for single extension record
+
         Read* read_;
 
         std::vector<RawTranscript> rawTranscripts_;
 
         std::vector<RawTranscriptPaired> rawTranscriptsPaired_;
 
+
+
         std::vector<Transcript> transcripts_;
 
         std::vector<fragmentMatchRecord> fragmentMatchRecords_;
-
-
 
         int maxTranscriptScore_;
 
         int numGoodTranscripts_;
 
+        char* resultTranscriptBuffer_;
+
+        size_t resultTranscriptLength_;
+
         Stitching(const GenomeIndex& g):genomeIndex_(g){};
-        ~Stitching(){};
+        ~Stitching();
 
         // parameters
         void setParam(const Parameters &P);
 
         // stitching process
-        void init();
+        void init(std::vector<Align>* a);
 
         std::pair<WindowAlign,WindowAlign> convertAlignToPositiveStrandWindowAlign(const Align& a, int ind) const;
 
@@ -241,10 +247,14 @@ namespace RefactorProcessing {
 
         void assignAlignment();
 
+        void convertToResult();
+
         // clear data
         void clear();
 
         void refreshWinBinMap();
+
+
 
     };
 };

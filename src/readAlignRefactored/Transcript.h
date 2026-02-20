@@ -2,6 +2,7 @@
 #define RNAALIGNREFACTORED_TRANSCRIPT_H
 #include <string>
 #include <vector>
+#include "Read.h"
 namespace RefactorProcessing {
     struct Exon {
         int64_t genomeStart;
@@ -40,7 +41,7 @@ namespace RefactorProcessing {
 
         std::string getCIGAR() const;
 
-
+        std::string convertToSAM(Read& r,bool isPaired, int mulmapNum) const;
     };
 }
 #endif //RNAALIGNREFACTORED_TRANSCRIPT_H

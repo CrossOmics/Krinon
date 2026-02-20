@@ -40,9 +40,9 @@ namespace RefactorProcessing {
     public:
         void setParam(const Parameters &P);
 
-        void loadFromFastq(char* targetBuffer1,char* targetBuffer2,const int bufferSize);
+        void loadFromFastq(char* targetBuffer1,char* targetBuffer2,const size_t bufferSize,size_t &buffer1Length,size_t & buffer2Length);
 
-        void parseRead(Read &r,const char* readBuffer1,const char* readBuffer2,int& r1Length,int& r2Length);
+        void parseRead(Read &r,const char* readBuffer1,const char* readBuffer2,size_t& r1Length,size_t& r2Length);
     };
 }
 #endif //RNAALIGNREFACTORED_READSCANNER_H

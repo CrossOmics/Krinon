@@ -1,6 +1,7 @@
 #include "Genome.h"
 #include "../log/ErrorRecord.h"
 #include "../utilsRefactored/defines.h"
+#include "../utilsRefactored/seqFunctions.h"
 #include <fstream>
 namespace RefactorProcessing {
     void Genome::setParam(const Parameters &P) {
@@ -109,6 +110,60 @@ namespace RefactorProcessing {
 
     int64_t Genome::getPosChrIndex(int64_t pos) const {
         return (--chromosomeMapStartToIndex_.upper_bound(pos))->second;
+    }
+
+    int Genome::writeChrInfo(const std::string &fileName) const {
+        std::ofstream ofs(fileName, std::ios::binary);
+        if (!ofs.is_open()) return -1;
+        uint64_t chrNum = chromosomes_.size();
+        ofs.write(reinterpret_cast<const char*>(&chrNum), sizeof(chrNum));
+        for (const auto& chr : chromosomes_) {
+            if (!writeString(ofs, chr.name)) return -2;
+            ofs.write(reinterpret_cast<const char*>(&chr.start), sizeof(chr.start));
+            ofs.write(reinterpret_cast<const char*>(&chr.length), sizeof(chr.length));
+        }
+        return 0;
+    }
+
+    int Genome::writeToFile(const std::string &fileName) const {
+        std::ofstream ofs(fileName, std::ios::binary);
+        if (!ofs.is_open()) return -1;
+        if(writeChrInfo(fileName+".chr") != 0) return -2;
+
+
+        ofs.write(reinterpret_cast<const char*>(&genomeLength_), sizeof(genomeLength_));
+        // write sequence
+        writeString(ofs, sequence_);
+        return 0;
+    }
+
+    int Genome::loadChrInfo(const std::string &fileName) {
+        std::ifstream ifs(fileName, std::ios::binary);
+        if (!ifs.is_open()) return -1;
+        uint64_t chrNum;
+        ifs.read(reinterpret_cast<char*>(&chrNum), sizeof(chrNum));
+        if (!ifs) return -2;
+        chromosomes_.clear();
+        for (size_t i = 0; i < chrNum; ++i) {
+            Chromosome chr;
+            if (!readString(ifs, chr.name)) return -3;
+            ifs.read(reinterpret_cast<char*>(&chr.start), sizeof(chr.start));
+            ifs.read(reinterpret_cast<char*>(&chr.length), sizeof(chr.length));
+            if (!ifs) return -4;
+            chromosomes_.push_back(chr);
+        }
+        buildChromosomeMap();
+        return 0;
+    }
+
+    int Genome::loadFromFile(const std::string &fileName) {
+        std::ifstream ifs(fileName, std::ios::binary);
+        if (!ifs.is_open()) return -1;
+        ifs.read(reinterpret_cast<char*>(&genomeLength_), sizeof(genomeLength_));
+        if (!ifs) return -2;
+        if (!readString(ifs, sequence_)) return -3;
+        if (loadChrInfo(fileName + ".chr") != 0) return -4;
+        return 0;
     }
 
 

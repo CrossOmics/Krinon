@@ -17,6 +17,7 @@ namespace RefactorProcessing {
         bitMask_ = (~0ULL) >> wordCompLength_;
         arrayLength_ = ((wordNum_ + reservedLength_) * wordLengthBits_ + 63) / 64;
         data = new uint64_t[arrayLength_];
+        allocated = true;
     }
 
     void PackedArray::setValue(int64_t index, uint64_t value) {
@@ -100,7 +101,8 @@ namespace RefactorProcessing {
         wordCompLength_ = 64 - wordLengthBits_;
         bitMask_ = (~0ULL) >> wordCompLength_;
         data = array;
-        allocated = false;
+        //todo fix here
+        allocated = true;
     }
 
     void PackedArray::setLength(int64_t length) {

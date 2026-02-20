@@ -75,5 +75,77 @@ namespace RefactorProcessing{
         }
     }
 
+    int SuffixArrayKMerMap::writeToFile(const std::string &fileName) const {
+        std::ofstream ofs(fileName, std::ios::binary);
+        if (!ofs.is_open()) return -1;
+
+        // magic + version
+        const char magic[4] = {'K','M','R','P'}; // KMerMap marker
+        ofs.write(magic, 4);
+
+
+        // write numeric members
+        ofs.write(reinterpret_cast<const char*>(&ELEMENT_BIT_LENGTHS[INDEX_LENGTH]), sizeof(ELEMENT_BIT_LENGTHS[INDEX_LENGTH]));
+        ofs.write(reinterpret_cast<const char*>(&ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX]), sizeof(ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX]));
+        ofs.write(reinterpret_cast<const char*>(&ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE]), sizeof(ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE]));
+        ofs.write(reinterpret_cast<const char*>(&length_), sizeof(length_));
+
+
+        //write data
+        size_t totalBits = ELEMENT_BIT_LENGTHS[INDEX_LENGTH] + ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] + ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE];
+        size_t bitsPerElement = dataLengthLessThanLL_ ? 64 : totalBits;
+        size_t totalLengthBits = length_ * bitsPerElement;
+        size_t dataLength = (totalLengthBits + 63) / 64;
+        ofs.write(reinterpret_cast<const char*>(data_), dataLength * sizeof(uint64_t));
+
+        return 0;
+    }
+
+    int SuffixArrayKMerMap::loadFromFile(const std::string &fileName) {
+        std::ifstream ifs(fileName, std::ios::binary);
+        if (!ifs.is_open()) return -1;
+
+        char magic[4];
+        ifs.read(magic, 4);
+        if (!ifs) return -2;
+        if (!(magic[0]=='K' && magic[1]=='M' && magic[2]=='R' && magic[3]=='P')) return -3;
+
+
+        int indexLengthBits, indexLeftSAIndexBits, indexUpperRangeBits;
+        ifs.read(reinterpret_cast<char*>(&indexLengthBits), sizeof(indexLengthBits));
+        ifs.read(reinterpret_cast<char*>(&indexLeftSAIndexBits), sizeof(indexLeftSAIndexBits));
+        ifs.read(reinterpret_cast<char*>(&indexUpperRangeBits), sizeof(indexUpperRangeBits));
+        if (!ifs) return -5;
+
+        length_ = 0;
+        ifs.read(reinterpret_cast<char*>(&length_), sizeof(length_));
+        if (!ifs) return -6;
+
+        // reinitialize the object with the loaded parameters
+        ELEMENT_BIT_LENGTHS[INDEX_LENGTH] = indexLengthBits;
+        ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] = indexLeftSAIndexBits;
+        ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE] = indexUpperRangeBits;
+        EMPTY_UPPER_RANGE = (1ULL << indexUpperRangeBits) - 1;
+        EMPTY_SA_INDEX = (1ULL << indexLeftSAIndexBits) - 1;
+        BIT_OFFSETS[INDEX_LENGTH] = 0;
+        BIT_OFFSETS[INDEX_LEFT_SA_INDEX] = indexLengthBits;
+        BIT_OFFSETS[INDEX_UPPER_RANGE] = indexLengthBits + indexLeftSAIndexBits;
+        dataLengthLessThanLL_ = (ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] + ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE]) <= 64;
+        init(length_);
+
+
+
+
+        // read data
+        size_t totalBits = ELEMENT_BIT_LENGTHS[INDEX_LENGTH] + ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] + ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE];
+        size_t bitsPerElement = dataLengthLessThanLL_ ? 64 : totalBits;
+        size_t totalLengthBits = length_ * bitsPerElement;
+        size_t dataLength = (totalLengthBits + 63) / 64;
+        ifs.read(reinterpret_cast<char*>(data_), dataLength * sizeof(uint64_t));
+
+        return 0;
+
+    }
+
 
 }

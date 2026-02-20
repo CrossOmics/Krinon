@@ -21,7 +21,7 @@ namespace RefactorProcessing {
         // configs
         int binSizeLog_{18}; //default 18
         std::string genomeFileName_;
-        std::string outPutDir_;
+        //std::string outPutDir_;
 
 
         // data
@@ -63,9 +63,10 @@ namespace RefactorProcessing {
 
 
         // input/output
-        void writeChrInfo(const std::string& dirOut) const;
-        int writeToFile(const std::string& dirName) const;
-        int loadFromFile(const std::string& dirName);
+        int writeChrInfo(const std::string& fileName) const;
+        int writeToFile(const std::string& fileName) const;
+        int loadChrInfo(const std::string& fileName);
+        int loadFromFile(const std::string& fileName);
 
 
     };
