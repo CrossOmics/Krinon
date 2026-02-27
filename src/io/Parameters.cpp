@@ -5,6 +5,9 @@ namespace RefactorProcessing{
         program.add_argument("--mode")
                 .help("the mode to run: GenomeGenerate, ReadAlign, GenomeGenerateAndReadAlign, test")
                 .default_value(std::string(""));
+        program.add_argument("--buildMethod")
+                .help("the method to build the genome index, default SAIS, can be SAIS or Traditional")
+                .default_value(std::string("SAIS"));
         program.add_argument("--genomeBinSize")
                 .help("log2 of the size of each bin in the genome index, default 18")
                 .default_value(18)
@@ -43,6 +46,14 @@ namespace RefactorProcessing{
         program.add_argument("--outProgressFile")
                 .help("the file to report progress, default out.progress.log")
                 .default_value(std::string("out.progress.log"));
+        program.add_argument("--readBufferSize")
+                .help("the buffer size for reading input files, default 5e7")
+                .default_value(50000000)
+                .scan<'i',int>();
+        program.add_argument("--outputBufferSize")
+                .help("the buffer size for writing output files, default 5e7")
+                .default_value(50000000)
+                .scan<'i',int>();
 
         program.add_argument("--kMerSize")
                 .help("k-mer size used in the genome index, default 14")
@@ -274,6 +285,9 @@ namespace RefactorProcessing{
             multimapScoreRange = program.get<int>("--multimapScoreRange");
             outFilterScoreMinOverLRead = program.get<double>("--outFilterScoreMinOverLread");
             outFilterMatchMinOverLRead = program.get<double>("--outFilterMatchMinOverLread");
+            buildMethod = program.get<std::string>("--buildMethod");
+            readBufferSize = program.get<int>("--readBufferSize");
+            outputBufferSize = program.get<int>("--outputBufferSize");
 
             auto maxMismatchForSJVec = program.get<std::vector<int>>("--MAX_MISMATCH_FOR_SJ");
 

@@ -31,6 +31,8 @@ namespace RefactorProcessing {
         void setParam(const Parameters &P,int initialFileSize = 1e7);
 
         void outputSAM(char* samRecord,size_t size);
+
+        void close();
     };
 }
 #endif //RNAALIGNREFACTORED_OUTPUTSAM_H

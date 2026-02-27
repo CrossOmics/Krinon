@@ -15,7 +15,7 @@ namespace RefactorProcessing {
                 } else if (sj[i].type == -1) {
                     cigar += std::to_string(sj[i].length) + "D"; // deletion
                 } else if (sj[i].type == -2) {
-                    cigar += std::to_string(sj[i].length) + "I"; // insertion
+                    cigar += std::to_string(-sj[i].length) + "I"; // insertion
                 }
             }
         }
@@ -30,7 +30,8 @@ namespace RefactorProcessing {
     std::string Transcript::convertToSAM(Read& r,bool isPaired, int mulmapNum) const {
         int qualityScore = 255;
         if (mulmapNum == 2) qualityScore = 3;
-        if (mulmapNum > 3) qualityScore = 1;
+        if (mulmapNum == 3) qualityScore = 1;
+        if (mulmapNum > 3) qualityScore = 0;
         if (!isPaired) {
             return r.name + "\t" +
                    std::to_string(strand == 0 ? 0 : 16) + "\t" +
@@ -61,7 +62,7 @@ namespace RefactorProcessing {
                     } else if (sj[iExon].type == -1) {
                         cigar1 += std::to_string(sj[iExon].length) + "D"; // deletion
                     } else if (sj[iExon].type == -2) {
-                        cigar1 += std::to_string(sj[iExon].length) + "I"; // insertion
+                        cigar1 += std::to_string(-sj[iExon].length) + "I"; // insertion
                     } else if (sj[iExon].type == -3) {
                         if (strand == 0) {
                             if (exons[iExon].readStart + exons[iExon].length < r.mate1Length) {

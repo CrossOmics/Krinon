@@ -7,6 +7,7 @@ namespace RefactorProcessing {
     void Genome::setParam(const Parameters &P) {
         binSizeLog_ = P.genomeBinSize;
         genomeFileName_ = P.genomeFile;
+        sjdbNum_ = 0;
     }
 
     void Genome::addComplementaryStrand() {
@@ -21,6 +22,8 @@ namespace RefactorProcessing {
             else revSeq += c; // keep N or other characters unchanged
         }
         sequence_ = sequence_ + "####################" + revSeq + "####################";
+
+        genomeLength_ += 10; // half of the spacing characters, for safety
 
     }
 
@@ -129,6 +132,7 @@ namespace RefactorProcessing {
         std::ofstream ofs(fileName, std::ios::binary);
         if (!ofs.is_open()) return -1;
         if(writeChrInfo(fileName+".chr") != 0) return -2;
+        if(writeSjdbInfo(fileName+".sjdb") != 0) return -3;
 
 
         ofs.write(reinterpret_cast<const char*>(&genomeLength_), sizeof(genomeLength_));
@@ -163,6 +167,42 @@ namespace RefactorProcessing {
         if (!ifs) return -2;
         if (!readString(ifs, sequence_)) return -3;
         if (loadChrInfo(fileName + ".chr") != 0) return -4;
+        if (loadSjdbInfo(fileName + ".sjdb") != 0) return -5;
+        return 0;
+    }
+
+    int Genome::writeSjdbInfo(const std::string &fileName) const {
+        std::ofstream ofs(fileName, std::ios::binary);
+        if (!ofs.is_open()) return -1;
+        ofs.write(reinterpret_cast<const char*>(&sjdbNum_), sizeof(sjdbNum_));
+        ofs.write(reinterpret_cast<const char*>(&sjdbStart_), sizeof(sjdbStart_));
+        ofs.write(reinterpret_cast<const char*>(&sjdbSeqLength_), sizeof(sjdbSeqLength_));
+        //write vectors
+        if (sjdbNum_ > 0){
+            ofs.write(reinterpret_cast<const char*>(sjDataBase_.data()), sjDataBase_.size() * sizeof(sjDataBasePiece));
+            ofs.write(reinterpret_cast<const char*>(sjDonorStart_.data()), sjDonorStart_.size() * sizeof(int64_t));
+            ofs.write(reinterpret_cast<const char*>(sjAcceptorStart_.data()), sjAcceptorStart_.size() * sizeof(int64_t));
+        }
+
+        return 0;
+    }
+
+    int Genome::loadSjdbInfo(const std::string &fileName) {
+        std::ifstream ifs(fileName, std::ios::binary);
+        if (!ifs.is_open()) return -1;
+        ifs.read(reinterpret_cast<char*>(&sjdbNum_), sizeof(sjdbNum_));
+        ifs.read(reinterpret_cast<char*>(&sjdbStart_), sizeof(sjdbStart_));
+        ifs.read(reinterpret_cast<char*>(&sjdbSeqLength_), sizeof(sjdbSeqLength_));
+        //read vectors
+        if (sjdbNum_ > 0){
+            sjDataBase_.resize(sjdbNum_);
+            sjDonorStart_.resize(sjdbNum_);
+            sjAcceptorStart_.resize(sjdbNum_);
+            ifs.read(reinterpret_cast<char*>(sjDataBase_.data()), sjDataBase_.size() * sizeof(sjDataBasePiece));
+            ifs.read(reinterpret_cast<char*>(sjDonorStart_.data()), sjDonorStart_.size() * sizeof(int64_t));
+            ifs.read(reinterpret_cast<char*>(sjAcceptorStart_.data()), sjAcceptorStart_.size() * sizeof(int64_t));
+        }
+
         return 0;
     }
 

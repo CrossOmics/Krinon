@@ -13,7 +13,11 @@ namespace RefactorProcessing {
 
 
         std::string mode;
+        std::string buildMethod;
         int workingThreads;
+
+        int readBufferSize;
+        int outputBufferSize;
 
         //Genome Generate Parameters
         int genomeBinSize;

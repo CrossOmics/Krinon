@@ -7,14 +7,29 @@
 #include "../io/Parameters.h"
 // todo a placeholder, change the namespace after finishing refactoring
 namespace RefactorProcessing {
-    class AdditionalGenomeSegment;
+
     class GenomeIndex;
+
+    class SJDB;
+
+    class sjDataBasePiece {
+    public:
+        size_t start;
+        size_t end;
+        uint8_t motif;
+        uint8_t shiftLeft;
+        uint8_t shiftRight;
+        uint8_t strand;
+
+    };
+
     struct Chromosome {
         std::string name;
         int64_t start;
         int64_t length;
     };
-    class Genome{
+
+    class Genome {
         // ONLY store basic genome information
     private:
 
@@ -25,11 +40,9 @@ namespace RefactorProcessing {
 
 
         // data
-        std::map<int64_t,int64_t> chromosomeMapStartToIndex_;
+        std::map<int64_t, int64_t> chromosomeMapStartToIndex_;
 
-        //additional genome sequence data such as sjdb
-        int64_t additionalSegmentNum_;
-        std::vector<AdditionalGenomeSegment*> additionalSegments_;
+
 
         void buildChromosomeMap();
 
@@ -40,13 +53,23 @@ namespace RefactorProcessing {
         std::string sequence_;
         size_t genomeLength_;// length of one strand, original genome length. That is, no additional sequence such as sjdb;
 
-        friend GenomeIndex;
 
-        Genome(){};
-        ~Genome(){};
+        size_t sjdbSeqLength_;// length of sjdb sequence for one strand, that is, sjdb.sjdbLength*sjdb.sjdbNum
+
+        int64_t sjdbStart_;// start position of sjdb sequence in genome sequence
+
+        //additional genome sequence data such as sjdb
+
+        int64_t sjdbNum_;
+        std::vector<sjDataBasePiece> sjDataBase_;
+        std::vector<int64_t> sjDonorStart_;
+        std::vector<int64_t> sjAcceptorStart_;
+        Genome() {};
+
+        ~Genome() {};
 
         // parameters
-        void setParam(const Parameters& P);
+        void setParam(const Parameters &P);
 
         // genome generate
         void loadFromFasta(const std::string &file);
@@ -59,16 +82,23 @@ namespace RefactorProcessing {
 
 
         // modify data
-        void modifyGenome();
+        void modifyGenome(SJDB &sjdb);
 
 
         // input/output
-        int writeChrInfo(const std::string& fileName) const;
-        int writeToFile(const std::string& fileName) const;
-        int loadChrInfo(const std::string& fileName);
-        int loadFromFile(const std::string& fileName);
+        int writeChrInfo(const std::string &fileName) const;
 
+        int writeSjdbInfo(const std::string &fileName) const;
 
+        int writeToFile(const std::string &fileName) const;
+
+        int loadChrInfo(const std::string &fileName);
+
+        int loadSjdbInfo(const std::string &fileName);
+
+        int loadFromFile(const std::string &fileName);
+
+        friend GenomeIndex;
     };
 }
 

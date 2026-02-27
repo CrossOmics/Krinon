@@ -3,18 +3,20 @@
 namespace RefactorProcessing{
     void ReadAlignerSingleThread::setParam(const Parameters &P) {
         isPairedEnd_ = P.isPaired;
-        readBufferSize_ = 5e7; // todo replace by parameter
-        outputBufferSize_ = 5e7; // todo replace by parameter
+        readBufferSize_ = P.readBufferSize;
+        outputBufferSize_ = P.outputBufferSize;
         r1Length_ = 0;
         r2Length_ = 0;
 
     }
 
-    void ReadAlignerSingleThread::init(ReadScanner *rs, OutputSAM *o,const Parameters &P,int threadId) {
+    void ReadAlignerSingleThread::init(ReadScanner *rs, OutputSAM *o,TimeReport* t,const Parameters &P,int threadId,int threadNum) {
         setParam(P);
         readScanner_ = rs;
         outputSAM_ = o;
+        timeReport_ = t;
         threadId_ = threadId;
+        threadNum_ = threadNum;
 
         readBuffer1_ = new char[readBufferSize_ + 20000];
         read1pos_ = 0;
@@ -29,16 +31,16 @@ namespace RefactorProcessing{
 
         seedMapping_.setParam(P);
         stitchingManagement_.setParam(P);
-        stitchingManagement_.init(&aligns_);
+        stitchingManagement_.init(&seedMapping_.aligns_);
 
         readScanner_ = rs;
         outputSAM_ = o;
 
-        aligns_.resize(P.maxSeedPerRead);
+        seedMapping_.aligns_.reserve(P.maxSeedPerRead);
     }
 
     int ReadAlignerSingleThread::getRead() {
-        size_t r1Length, r2Length;
+        size_t r1Length = 0, r2Length = 0;
         if (read1pos_ == r1Length_) {
             readScanner_->loadFromFastq(readBuffer1_, readBuffer2_, readBufferSize_, r1Length, r2Length);
             read1pos_ = 0;
@@ -60,18 +62,33 @@ namespace RefactorProcessing{
 
     void ReadAlignerSingleThread::process() {
         int readCount = 0;
+        if (threadId_ == 0) {
+            timeReport_->init(threadNum_,"TimeReport.out");
+        }
         while (getRead() == 0) {
-            aligns_.clear();
+
+            seedMapping_.aligns_.clear();
             seedMapping_.process(&r);
-            stitchingManagement_.process(aligns_, &r);
+            stitchingManagement_.process(seedMapping_.aligns_, &r);
             // output SAM records
-            std::memcpy(outputBuffer_, stitchingManagement_.resultTranscriptBuffer_,stitchingManagement_.resultTranscriptLength_);
+            std::memcpy(outputBuffer_ + outputPos_, stitchingManagement_.resultTranscriptBuffer_,stitchingManagement_.resultTranscriptLength_);
             outputPos_ += stitchingManagement_.resultTranscriptLength_;
             if (outputPos_ > outputBufferSize_) {
                 outputSAM_->outputSAM(outputBuffer_, outputPos_);
                 outputPos_ = 0;
             }
             ++readCount;
+            if (readCount % 1000 == 0) {
+                if (threadId_ == 0) {
+                    timeReport_->tryActivateReport(threadNum_);
+                }
+                timeReport_->tryReportProgress(threadId_,readCount);
+            }
+
+        }
+        if (outputPos_ > 0) {
+            outputSAM_->outputSAM(outputBuffer_, outputPos_);
+            outputPos_ = 0;
         }
     }
 
@@ -89,10 +106,11 @@ namespace RefactorProcessing{
 
     void ReadAligner::init(const Parameters &P, int threadNum) {
         setParam(P);
+        loadGenome();
         aligners_.reserve(threadNum);
         for (int i = 0; i < threadNum; ++i) {
             aligners_.emplace_back(new ReadAlignerSingleThread(gIndex_));
-            aligners_[i]->init(&readScanner_, &outputSAM_, P, i);
+            aligners_[i]->init(&readScanner_, &outputSAM_, &timeReport_, P, i, threadNum);
         }
     }
 
@@ -109,6 +127,8 @@ namespace RefactorProcessing{
                 thread.join();
             }
         }
+
+        outputSAM_.close();
     }
 
 

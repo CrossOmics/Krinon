@@ -22,7 +22,10 @@ namespace RefactorProcessing {
         int direction; // 0 for forward, 1 for reverse
         int iFragment; // 0 or 1, for paired-end reads
         bool isAnchor; // whether this align is an anchor
-        Align() { length = 0; rep = 0;}
+        Align() {
+            length = 0;
+            rep = 0;
+        }
     };
 
     struct Split {
@@ -31,6 +34,7 @@ namespace RefactorProcessing {
         int readLength;
         std::string forward;
         std::string reverse;
+        int iFragment; // 0 or 1, for paired-end reads
     };
 
 
@@ -54,7 +58,6 @@ namespace RefactorProcessing {
         int limitSjdbInsertN_;
 
 
-
         //todo replace with PackedIndexArray
         SuffixArrayKMerMap patternMerMap_; // stored result of k-mer search
 
@@ -63,10 +66,27 @@ namespace RefactorProcessing {
 
 
 
-        inline bool insertAlign(std::vector<Align> &results, const Align &a) const;
+        inline bool insertAlignResults(std::vector<Align> &results, const Align &a) const;
+
+
+        inline size_t sjFindInsertPosition(const std::string_view& s) const{
+
+            int64_t left = 0;
+            int64_t right = suffixArray_.length_;
+            int64_t mid;
+            std::string_view gs(genome_.sequence_);
+            while (right - left > 1) {
+                mid = (left + right) / 2;
+
+                if (compSeq(s, gs.substr(suffixArray_[mid]))) right = mid;
+                else left = mid;
+            }
+            return right;
+
+        }
 
     public:
-    // data
+        // data
 
         Genome genome_;// owned genome
 
@@ -93,14 +113,15 @@ namespace RefactorProcessing {
         void buildExtendedIndexHash();
 
         // for additional sequences like SJDB
-        void modify();
+        void modify(SJDB &sjdb);
 
         // search
         void find(const Split pattern, std::vector<Align> &results) const;
 
         Align findMMP(const std::string_view &seq) const;
 
-        Align findMMP_GetRange(const std::string_view &seq, int64_t rangeLeft, int64_t rangeRight, size_t matchedLength) const;
+        Align findMMP_GetRange(const std::string_view &seq, int64_t rangeLeft, int64_t rangeRight,
+                               size_t matchedLength) const;
 
         inline std::pair<size_t, bool>
         matchGenomeSeq(const std::string_view &pattern, size_t matchedLength, size_t pos) const;

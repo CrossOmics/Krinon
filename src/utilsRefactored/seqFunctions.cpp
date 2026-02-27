@@ -17,20 +17,7 @@ namespace RefactorProcessing {
         return hash;
     }
 
-    int32_t charToIndex(char c) {
-        switch (c) {
-            case 'A':
-                return 0;
-            case 'C':
-                return 1;
-            case 'G':
-                return 2;
-            case 'T':
-                return 3;
-            default:
-                return -1; // For 'N' or any other character
-        }
-    }
+
 
     bool writeString(std::ofstream &ofs, const std::string &s) {
         uint32_t n = static_cast<uint32_t>(s.size());
@@ -47,4 +34,6 @@ namespace RefactorProcessing {
         if (n) ifs.read(&s[0], n);
         return bool(ifs);
     }
+
+
 }

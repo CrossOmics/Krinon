@@ -33,6 +33,10 @@ namespace RefactorProcessing {
         bool setReservedLength(int64_t newReservedLength); // return false if newReservedLength is larger than current reservedLength
 
         void setLength(int64_t length);
+
+        void setDeleted(){
+            allocated = false;
+        }
         // input/output
         int writeToFile(const std::string& fileName) const;
         int loadFromFile(const std::string& fileName, int reservedLength=0);

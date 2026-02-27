@@ -7,11 +7,26 @@
 
 namespace RefactorProcessing{
     void SuffixArray::build(const std::string &seq) {
-        buildSAIS(seq);
+        if (buildMethod == "SAIS") buildSAIS(seq);
+        else if (buildMethod == "Traditional") buildTraditional(seq);
+        for (int i = 0; i<10;++i){
+            std::cout << suffixArray_[i] << " ";
+        }
+        std::cout << "\n";
+    }
+
+    void SuffixArray::buildFromOtherInit(const SuffixArray &other, int newLength) {
+        buildMethod = other.buildMethod;
+        length_ = newLength;
+        wordBits_ = other.wordBits_;
+        reservedLength = other.reservedLength;
+        suffixArray_.initialize(newLength, wordBits_, reservedLength);
     }
 
     void SuffixArray::setParam(const Parameters &P){
-        reservedLength = P.limitSjdbInsertN;
+        reservedLength = 0; //todo
+        threadNum = P.workingThreads;
+        buildMethod = P.buildMethod;
     }
 
     PackedArray& SuffixArray::getSuffixArray(){

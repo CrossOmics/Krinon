@@ -20,7 +20,7 @@ namespace RefactorProcessing {
         std::string readFileName1_;
         std::string readFileName2_;
 
-        size_t readBufferSize_;
+
         //char* readBuffer1_;
         //char* readBuffer2_;
 

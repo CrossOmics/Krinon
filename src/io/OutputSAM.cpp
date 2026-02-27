@@ -27,7 +27,15 @@ namespace RefactorProcessing{
         }
         char* base = outputFile_->getMapPtr();
         std::memcpy(base + mmapPos_, samRecord, size);
+
         mmapPos_ += size;
         outputFileLock_.unlock();
+    }
+
+    void OutputSAM::close() {
+        if (outputFile_) {
+            outputFile_->truncate(mmapPos_); // truncate the file to the actual size of the data written
+            outputFile_->memClose();
+        }
     }
 }

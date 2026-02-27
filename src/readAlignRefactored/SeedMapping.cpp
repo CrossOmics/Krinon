@@ -38,9 +38,10 @@ namespace RefactorProcessing {
                             Split{
                                     i - splitLen,
                                     splitLen,
-                                    iFragment,
+                                    (int) readSeq.length(),
                                     readSeq.substr(i - splitLen, splitLen),
                                     readSeqComp.substr(len - i, splitLen),
+                                    iFragment,
                             }
                     );
                 }
@@ -59,6 +60,7 @@ namespace RefactorProcessing {
                             (int) readSeq.length(),
                             readSeq.substr(i - splitLen, splitLen),
                             readSeqComp.substr(len - i, splitLen),
+                            iFragment,
                     }
             );
         }

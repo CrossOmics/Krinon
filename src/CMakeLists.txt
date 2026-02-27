@@ -3,6 +3,10 @@ project(RNAAlignRefactored)
 
 set(CMAKE_CXX_STANDARD 17)
 
+find_package(OpenMP REQUIRED)
+
+
+
 add_executable(RNAAlignRefactored   main.cpp
                                     genome/Genome.cpp
                                     genome/GenomeIndex.cpp
@@ -20,8 +24,9 @@ add_executable(RNAAlignRefactored   main.cpp
                                     utils/MemoryMappedFile.hpp
                                     utilsRefactored/seqFunctions.cpp
                                     log/ErrorRecord.cpp
-                                    utilsRefactored/timeFunctions.hpp
+                                    log/TimeReport.cpp
                                     utilsRefactored/PackedArray.cpp
+                                    utilsRefactored/timeFunctions.cpp
                                     io/Parameters.cpp
                                     io/MemoryMappedFile.hpp
                                     io/ReadScanner.cpp
@@ -30,6 +35,7 @@ add_executable(RNAAlignRefactored   main.cpp
                                     genomeRefactored/GenomeIndex_build.cpp
                                     genomeRefactored/GenomeIndex_find.cpp
                                     genomeRefactored/SuffixArray.cpp
+                                    genomeRefactored/SuffixArray_build_traditional.cpp
                                     genomeRefactored/SuffixArray_build_SAIS.cpp
                                     genomeRefactored/SuffixArrayKMerMap.cpp
                                     genomeRefactored/SJDB.cpp
@@ -39,3 +45,4 @@ add_executable(RNAAlignRefactored   main.cpp
                                     readAlignRefactored/ReadMerger.cpp
                                     readAlignRefactored/ReadAligner.cpp
 )
+target_link_libraries(RNAAlignRefactored PUBLIC OpenMP::OpenMP_CXX)

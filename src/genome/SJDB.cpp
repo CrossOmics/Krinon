@@ -517,7 +517,7 @@ namespace rna {
         std::vector<insertRecord> insertPos;
         insertPos.resize(2 * genome.sjdbNum * config_.sjdbLength);
 #pragma omp parallel num_threads(8)
-#pragma omp for schedule (dynamic, 1000) reduction(+:sjNew)
+#pragma omp for schedule (dynamic, 1000)
         for (size_t i = 0; i < 2 * genome.sjdbNum; ++i) {
             for (size_t sjStart = 0; sjStart < config_.sjdbLength; ++sjStart) {
                 size_t ind = i * config_.sjdbLength + sjStart;

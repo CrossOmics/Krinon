@@ -60,6 +60,7 @@ namespace RefactorProcessing{
         if (dataLengthLessThanLL_) {
             auto wordPtr = data_ + index;
             uint64_t value = (*wordPtr >> BIT_OFFSETS[elementIndex]) & ((1ULL << ELEMENT_BIT_LENGTHS[elementIndex]) - 1);
+
             return (int64_t)value;
         } else {
             uint64_t b = index * (ELEMENT_BIT_LENGTHS[INDEX_LENGTH] + ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] + ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE]) + BIT_OFFSETS[elementIndex];
@@ -71,6 +72,7 @@ namespace RefactorProcessing{
                 // Handle the case where the value spans two 64-bit integers
                 value |= (*(wordPtr + 1) & (((1ULL << ELEMENT_BIT_LENGTHS[elementIndex]) - 1) >> (64 - S))) << (64 - S);
             }
+
             return (int64_t)value;
         }
     }

@@ -73,13 +73,19 @@ int main(int argc, char* argv[]){
         RefactorProcessing::GenomeIndex genomeIndex;
         genomeIndex.setParam(Pa);
         genomeIndex.build();
+        if (!Pa.gtfFile.empty()) {
+            RefactorProcessing::SJDB gtf;
+            gtf.loadGTF(Pa.gtfFile, genomeIndex.genome_);
+            gtf.fillSjdbLoci(Pa.outPutDir, genomeIndex.genome_);
+            genomeIndex.modify(gtf);
+        }
         genomeIndex.writeToFile(Pa.genomeGenerateFileStoreDir+ "GeIndex");
     }
     if (mode == "ReadAlign" || mode == "both") {
 
         RefactorProcessing::ReadAligner readAligner;
         readAligner.init(Pa,Pa.workingThreads);
-        readAligner.loadGenome();
+
         readAligner.alignReads();
     }
 

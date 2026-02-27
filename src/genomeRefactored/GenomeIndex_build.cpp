@@ -1,6 +1,8 @@
 #include "../utilsRefactored/defines.h"
 #include "GenomeIndex.h"
+#include "../utilsRefactored/seqFunctions.h"
 #include "../io/Parameters.h"
+#include "../utilsRefactored/timeFunctions.h"
 
 namespace RefactorProcessing {
     GenomeIndex::GenomeIndex() = default;
@@ -8,6 +10,7 @@ namespace RefactorProcessing {
     GenomeIndex::~GenomeIndex() = default;
 
     void GenomeIndex::setParam(const Parameters &P) {
+        suffixArray_.setParam(P);
         kMerSize_ = P.kMerSize;
         kMerNum_ = (1ULL << (kMerSize_ * 2)) + 1;
         extendHashTableByte_ = P.extendAlternativeByte;
@@ -23,16 +26,22 @@ namespace RefactorProcessing {
     }
 
     void GenomeIndex::build() {
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Loading genome...\n" ;
         loadGenome();
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Building suffix array...\n" ;
         suffixArray_.build(genome_.sequence_);
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Building LCP array...\n" ;
         buildLCP();
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Building SAI...\n" ;
         buildKmerMap();
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Building extended SAI...\n" ;
         buildExtendedIndexHash();
+        std::cout << getCurrentTimeString() << "\n";
         std::cout << "Finished building genome index\n" ;
     }
 
@@ -194,10 +203,11 @@ namespace RefactorProcessing {
 
                 for (int k = 0; k < length; ++k) {
                     int c = charToIndex(genome_.sequence_[index + kMerSize_ + k]);
-                    if (c == -1) {
+                    if (c != -1) {
                         hash <<= 2;
                         hash |= c;
                     }else {
+                        // non-ACGT
                         // set all remaining bps to T
                         hash <<= (2 * (length - k));
                         hash |= (1ULL << (2 * (length - k))) - 1;
@@ -328,6 +338,8 @@ namespace RefactorProcessing {
 
         return 0;
     }
+
+
 
 
 

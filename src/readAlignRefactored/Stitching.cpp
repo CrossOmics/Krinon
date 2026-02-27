@@ -29,6 +29,9 @@ namespace RefactorProcessing {
         outFilterScoreMinOverLRead_ = P.outFilterScoreMinOverLRead;
         outFilterMatchMinOverLRead_ = P.outFilterMatchMinOverLRead;
 
+        sjdbOverhang_ = P.sjdbOverhang;
+        sjdbLength_ = P.sjdbLength;
+
         MATCH_SCORE_ = P.MATCH_SCORE;
         MISMATCH_PENALTY_ = P.MISMATCH_PENALTY;
         GAP_OPEN_PENALTY_ = P.GAP_OPEN_PENALTY;
@@ -53,25 +56,28 @@ namespace RefactorProcessing {
     void Stitching::init(std::vector<Align> *a) {
         // allocate memory for data structures based on parameters
         alignments_ = a;
-        windows_.resize(maxWindows_);
+        windows_.reserve(maxWindows_);
+        windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
         transcripts_.resize(transcriptStoredMax_);
-        size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_-1)) + 2;
-        winBinMap_[0].resize(winBinNum,-1);
-        winBinMap_[1].resize(winBinNum,-1);
+        size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_ - 1)) + 2;
+        winBinMap_[0].resize(winBinNum, -1);
+        winBinMap_[1].resize(winBinNum, -1);
         size_t maxStitchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
         stitchRecords_.resize(maxStitchRecordNum);
         extendRecords_[0].resize(maxSeedPerWindows_);
         extendRecords_[1].resize(maxSeedPerWindows_);
-        allSingleExtensionRecord_.resize(maxSeedPerWindows_*2*(1+maxMismatch_));
+        allSingleExtensionRecord_.resize(maxSeedPerWindows_ * 2 * (1 + maxMismatch_));
         for (int i = 0; i < maxSeedPerWindows_; ++i) {
-            extendRecords_[0][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_.data() + (i * (1 + maxMismatch_));
-            extendRecords_[1][i].maxExtensionLengthWithMismatch = allSingleExtensionRecord_.data() + ((i + maxSeedPerWindows_) * (1 + maxMismatch_));
+            extendRecords_[0][i].maxExtensionLengthWithMismatch =
+                    allSingleExtensionRecord_.data() + (i * (1 + maxMismatch_));
+            extendRecords_[1][i].maxExtensionLengthWithMismatch =
+                    allSingleExtensionRecord_.data() + ((i + maxSeedPerWindows_) * (1 + maxMismatch_));
         }
         size_t maxRawTranscriptNum = maxSeedPerWindows_ * maxSeedPerWindows_;
-        if(!isPaired_) rawTranscripts_.resize(maxRawTranscriptNum);
+        if (!isPaired_) rawTranscripts_.resize(maxRawTranscriptNum);
         else rawTranscriptsPaired_.resize(maxRawTranscriptNum);
         transcripts_.resize(100);
-        if(isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
+        if (isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
 
         resultTranscriptBuffer_ = new char[transcriptStoredMax_ * 5000];
         resultTranscriptLength_ = 0;
@@ -81,16 +87,19 @@ namespace RefactorProcessing {
         delete[] resultTranscriptBuffer_;
     }
 
-    void Stitching::clear(){
+    void Stitching::clear() {
         refreshWinBinMap();
+        windows_.clear();
         numGoodTranscripts_ = 0;
-        resultTranscriptLength_ = 0;
     }
 
     void Stitching::process(std::vector<RefactorProcessing::Align> &aligns, RefactorProcessing::Read *read) {
         if (aligns.size() == 0) {
             return;
         }
+        resultTranscriptLength_ = 0;
+        maxTranscriptScore_ = 0;
+        numGoodTranscripts_ = 0;
         read_ = read;
         alignments_ = &aligns;
         outFilterScoreMin_ = int(double(read_->length) * outFilterScoreMinOverLRead_);
@@ -102,10 +111,12 @@ namespace RefactorProcessing {
 
         if (isPaired_) {
             for (auto &window: windows_) {
+                if (window.startBin > window.endBin) continue;
                 stitchPaired(window);
             }
         } else {
             for (auto &window: windows_) {
+                if (window.startBin > window.endBin) continue;
                 stitchSingle(window);
             }
         }
@@ -134,7 +145,7 @@ namespace RefactorProcessing {
     }
 
     void Stitching::convertToResult() {
-        resultTranscriptLength_ = 0;
+
         for (int i = 0; i < numGoodTranscripts_; ++i) {
             std::string s = transcripts_[i].convertToSAM(*read_, isPaired_, numGoodTranscripts_);
             size_t len = s.length();
@@ -146,9 +157,51 @@ namespace RefactorProcessing {
 
     std::pair<WindowAlign, WindowAlign>
     Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, int ind) const {
-        // todo Add sjdb check
+        //sjdb check
         WindowAlign wa;
+        WindowAlign wa2;
+        wa2.direction = 2;// 2 means dummy
         int64_t loc = genomeIndex_.suffixArray_[ind];
+        if (genomeIndex_.genome_.sjdbNum_ >0 && loc > genomeIndex_.genome_.sjdbStart_){
+            // maybe a cross-sjdb alignment
+            loc -= genomeIndex_.genome_.sjdbStart_;
+            int dir = 0;
+            if (loc > genomeIndex_.genome_.sjdbSeqLength_) {
+                dir = 1;
+                loc = 2 * genomeIndex_.genome_.sjdbSeqLength_ - loc - a.length;
+            }
+
+            int64_t startInSj = loc % sjdbLength_;
+            if (startInSj < sjdbOverhang_ && startInSj + a.length > sjdbOverhang_) {
+                // crossing sjdb
+                int sjIndex = loc / sjdbLength_;
+                int64_t donorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex] + startInSj;
+                int64_t donorLength = sjdbOverhang_ - startInSj;
+                int64_t acceptorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex];
+                int64_t acceptorLength = a.length - donorLength;
+                wa.genomeStart = donorStart;
+                wa.readStart = a.readPos;
+                wa.length = donorLength;
+                wa.direction = dir;
+                wa.isAnchor = a.isAnchor;
+                wa.iFragment = a.iFragment;
+                wa.isj = sjIndex;
+
+                wa2.genomeStart = acceptorStart;
+                wa2.readStart = a.readPos + donorLength;
+                wa2.length = acceptorLength;
+                wa2.direction = dir;
+                wa2.isAnchor = a.isAnchor;
+                wa2.iFragment = a.iFragment;
+                wa2.isj = sjIndex;
+                return {wa, wa2};
+            }else {
+                // not crossing sjdb
+                wa.direction = 2;
+                return {wa,wa2};
+            }
+        }
+
         if (loc > genomeIndex_.genome_.genomeLength_) {
             //reverse strand
             wa.genomeStart = genomeIndex_.genome_.genomeLength_ * 2 - loc - a.length;
@@ -167,7 +220,7 @@ namespace RefactorProcessing {
             wa.iFragment = a.iFragment;
         }
 
-        return {wa, WindowAlign()};
+        return {wa, wa2};
 
     }
 
@@ -224,12 +277,12 @@ namespace RefactorProcessing {
             //create a new window
             nowWindowIndex = windows_.size();
         }
-        winBinMap_[dir][nowBin] = nowWindowIndex;
+        winBinMap_[dir][anchorBin] = nowWindowIndex;
 
         // try merging with right existing windows
-        int64_t rightBound = std::min(chrEndBin, nowBin + winAnchorDistBins_);
+        int64_t rightBound = std::min(chrEndBin, anchorBin + winAnchorDistBins_);
         int32_t rightOverlap = -1;
-        for (nowBin = nowBin + 1; nowBin <= rightBound; nowBin++) {
+        for (nowBin = anchorBin + 1; nowBin <= rightBound; nowBin++) {
             if (winBinMap_[dir][nowBin] != -1) {
                 rightOverlap = winBinMap_[dir][nowBin];
             }
@@ -274,9 +327,12 @@ namespace RefactorProcessing {
 
             for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
                 // get positive window align
-                // todo handle sjdb
-                auto [anchor, dummy] = convertAlignToPositiveStrandWindowAlign(align, i);
+                // handle sjdb
+                auto [anchor, anchor2] = convertAlignToPositiveStrandWindowAlign(align, i);
+
+                if (anchor.direction == 2) continue; // not a valid alignment
                 createWindowFromAnchor(anchor);
+                // todo ? no need to create anchor2 for a pair of cross-sjdb aligns
             }
         }
 
@@ -305,6 +361,9 @@ namespace RefactorProcessing {
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
             memset(win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;
+            win.numAnchors = 0;
+            win.numFirstFragAligns = 0;
+            win.numSecondFragAligns = 0;
         }
     }
 
@@ -408,7 +467,7 @@ namespace RefactorProcessing {
         // simple case
         // find the position to insert
         ++numAligns;
-        for (int i = numAligns; i > 0; --i) {
+        for (int i = numAligns - 1; i > 0; --i) {
             if (aligns[i - 1].readStart <= a.readStart) {
                 aligns[i] = a;
                 return true;
@@ -422,14 +481,24 @@ namespace RefactorProcessing {
     void Stitching::assignAlignment() {
         for (const auto &align: *alignments_) {
             for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
+                // ignore too repetitive alignments
+                if (align.rep > maxRep_) continue;
                 // get positive window align
-                // todo handle sjdb
-                auto [wa, dummy] = convertAlignToPositiveStrandWindowAlign(align, i);
+                // handle sjdb
+                auto [wa, wa2] = convertAlignToPositiveStrandWindowAlign(align, i);
+                if (wa.direction == 2) continue; // not a valid alignment
                 size_t bin = (wa.genomeStart >> winBinSizeLog_);
                 auto winId = winBinMap_[wa.direction][bin];
                 if (winId == -1) continue;
                 Window &win = windows_[winId];
                 win.assignAlignment(wa, maxSeedPerWindows_);
+                if (wa2.direction!= 2) {
+                    size_t bin2 = (wa2.genomeStart >> winBinSizeLog_);
+                    auto winId2 = winBinMap_[wa2.direction][bin2];
+                    if (winId2 == -1) continue;
+                    Window &win2 = windows_[winId2];
+                    win2.assignAlignment(wa2, maxSeedPerWindows_);
+                }
             }
         }
     }
@@ -495,12 +564,12 @@ namespace RefactorProcessing {
         }
 
 
-        //todo sjdb check
-        /*if(a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart ){
+        //sjdb check
+        if(a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart ){
             // annotated splice junction
-            if (genomeIndex_.genome_->sjdb[a2.isj].motif == 0
-                &&(a2.length <= genomeIndex_.genome_->sjdb[a2.isj].shiftRight||
-                   a1.length <= genomeIndex_.genome_->sjdb[a2.isj].shiftLeft)) {
+            if (genomeIndex_.genome_.sjDataBase_[a2.isj].motif == 0
+                &&(a2.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftRight||
+                   a1.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftLeft)) {
                 // too large repeats around non-canonical
                 record.type = StitchRecord::CANNOT_STITCH;
                 return;
@@ -511,9 +580,10 @@ namespace RefactorProcessing {
             record.latterExonLengthShift = 0;
             record.matches = a2.length;
             record.mismatches = 0;
+            record.spliceJunctionType = genomeIndex_.genome_.sjDataBase_[a1.isj].motif;
             //record.stitchingType = {genomeIndex_.genome->sjdb[a2.isj].motif, a2.genomeStart - (a1GenomeEnd + 1), true};
             return;
-        }*/
+        }
 
 
         if (a2ReadEnd <= a1ReadEnd || a2GenomeEnd <= a1GenomeEnd) {
@@ -669,7 +739,7 @@ namespace RefactorProcessing {
             }
 
             // score the gap
-            // todo check if the junction is annotated
+            // todo ? check if the junction is annotated
             /*if (genomeIndex_.genome_->sjdbNum > 0) {
 
             }*/
@@ -677,18 +747,21 @@ namespace RefactorProcessing {
             if (Del > MIN_INTRON_LENGTH_) {
                 record.score += GAP_OPEN_PENALTY_ + junctionPenalty;
                 record.type = StitchRecord::SPLICE_JUNCTION;
+                //int sjStrand = 0;
+                //if (junctionType > 0) sjStrand = 2 - (junctionType % 2);
+                record.spliceJunctionType = junctionType;
 
             } else {
                 record.score += DEL_OPEN_PENALTY_ + Del * DEL_EXTEND_PENALTY_;
                 record.type = StitchRecord::DELETION;
+                record.spliceJunctionType = SIMPLE_DELETION;
             }
             record.formerExonLengthShift = junctionReadPos;
             record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos) - a2.length;
             record.matches = nMatch + a2Length;
             record.mismatches = nMismatch;
-            int sjStrand = 0;
-            if (junctionType > 0) sjStrand = 2 - (junctionType % 2);
-            record.spliceJunctionType = sjStrand;
+
+
 
         } else if (readGap > genomeGap) {
             //insert
@@ -919,7 +992,7 @@ namespace RefactorProcessing {
                 // no new exon
                 t.exons[alignPos].length += nowStitch.latterExonLengthShift;
                 t.exons[alignPos].readStart -= nowStitch.latterExonLengthShift;
-                t.genomeStart -= nowStitch.latterExonLengthShift;
+                t.exons[alignPos].genomeStart -= nowStitch.latterExonLengthShift;
             } else {
                 --alignPos;
                 t.exons[alignPos].genomeStart = nowAlign.genomeStart;
@@ -988,7 +1061,7 @@ namespace RefactorProcessing {
         for (int i = 0; i < numAligns; ++i) {
             for (int j = i + 1; j < numAligns; ++j) {
                 StitchRecord &record = stitchRecords_[calcStitchRecPos(i, j)];
-                stitchWindowAlign(window, window.aligns[j], window.aligns[i], record);
+                stitchWindowAlign(window, window.aligns[i], window.aligns[j], record);
             }
         }
 
@@ -1052,7 +1125,7 @@ namespace RefactorProcessing {
                 int score;
 
                 maxMismatchRemain -= extendInfo1.mismatches;
-                score = extendInfo1.matched * MATCH_SCORE_ - extendInfo1.mismatches * MISMATCH_PENALTY_;
+                score = extendInfo1.matched * MATCH_SCORE_ + extendInfo1.mismatches * MISMATCH_PENALTY_;
                 t.score += score;
                 t.mismatches += extendInfo1.mismatches;
                 t.matches += extendInfo1.matched;
@@ -1070,7 +1143,7 @@ namespace RefactorProcessing {
                 const ExtendRecord::singleExtendRecord &extendInfo2 = e2.maxExtensionLengthWithMismatch[std::min(
                         e2.maxMismatch, maxMismatchRemain)];
                 extendLength = 0;
-                score = extendInfo2.matched * MATCH_SCORE_ - extendInfo2.mismatches * MISMATCH_PENALTY_;
+                score = extendInfo2.matched * MATCH_SCORE_ + extendInfo2.mismatches * MISMATCH_PENALTY_;
                 t.score += score;
                 t.mismatches += extendInfo2.mismatches;
                 t.matches += extendInfo2.matched;

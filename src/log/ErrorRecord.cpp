@@ -1,6 +1,6 @@
 #include "ErrorRecord.h"
 #include <fstream>
-#include "../utilsRefactored//timeFunctions.hpp"
+#include "../utilsRefactored//timeFunctions.h"
 
 
 namespace rna{

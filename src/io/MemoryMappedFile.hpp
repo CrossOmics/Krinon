@@ -51,6 +51,13 @@ namespace RefactorProcessing {
             return size_;
         }
 
+        void truncate(int64_t newSize) {
+            if (ftruncate(fd_, newSize) == -1) {
+                throw std::runtime_error("Failed to truncate file to new size");
+            }
+            size_ = newSize;
+        }
+
         void memClose() {
             if (mapPtr_ != nullptr && mapPtr_ != MAP_FAILED)
                 munmap(mapPtr_, size_);

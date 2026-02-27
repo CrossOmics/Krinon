@@ -150,6 +150,10 @@ namespace RefactorProcessing {
         int outFilterScoreMin_;// calculated based on read length
         int outFilterMatchMin_;
 
+        //sjdb
+        int sjdbOverhang_;
+        int sjdbLength_;
+
 
         // scoring
         int MATCH_SCORE_;

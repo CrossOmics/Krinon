@@ -413,18 +413,15 @@ namespace RefactorProcessing{
 
 
     void SuffixArray::buildSAIS(const std::string &seq) {
-        //todo: optimize memory allocations: text_ is useless
-        std::vector<unsigned char> text_;
+
         const int64_t n = seq.length();
-        text_.resize(n , -1);
-        for (size_t i = 0; i < n;++i){
-            int c = charToIndex(seq[i]);
-            text_[i] = c < 0 ? 5 : c + 1; // ensure that invalid characters are at the end
-        }
+
+
         size_t patLen = n + 1;
         size_t* p = new size_t[patLen];
         for (size_t i = 0; i < n; ++i) {
-            p[i] = text_[i];
+            int c = charToIndex(seq[i]);
+            p[i] = c < 0 ? 5 : c + 1;
         }
         p[n] = 0;
         size_t saLen = std::max(n, (int64_t) 256);
@@ -443,7 +440,7 @@ namespace RefactorProcessing{
         suffixArray_.buildFromReservedArray(rawSA, bitsNeeded, n, reservedLength);
         size_t validCount = 0;
         for (size_t i = 1; i <= n; ++i) {
-            if (text_[sa[i]] != 5) {
+            if (charToIndex(seq[sa[i]]) >= 0) {
                 suffixArray_.setValue(validCount, sa[i]);
                 validCount++;
             }

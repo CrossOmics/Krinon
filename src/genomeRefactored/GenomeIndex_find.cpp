@@ -4,7 +4,7 @@
 
 
 namespace RefactorProcessing {
-    inline bool GenomeIndex::insertAlign(std::vector<Align> &results, const Align &a) const {
+    inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a) const {
 
 
         if (results.size() >= maxAlignNum) {
@@ -31,6 +31,11 @@ namespace RefactorProcessing {
             }
             posToInsert = i;
             break;
+        }
+        if (posToInsert == -1) {
+            // insert at the end
+            results.push_back(a);
+            return true;
         }
         results.push_back(Align());
         for (int i = results.size() - 1; i > posToInsert; --i) {
@@ -66,19 +71,20 @@ namespace RefactorProcessing {
                 int64_t matchedLength = nowMappedLength;
                 do {
 
-                    if (splitLength - nowMappedLength <= 5) {
+                    if (splitLength - matchedLength <= 5) {
                         // avoid too short matches
                         // todo replace 5 by parameter
                         length = 0;
                         break;
                     }
                     Align matchedAlign = findMMP(split.substr(matchedLength));
-                    matchedAlign.readPos = nowMappedLength + splitStart;
+                    matchedAlign.readPos =  splitStart + matchedLength;
                     matchedAlign.direction = dir;
+                    matchedAlign.iFragment = pattern.iFragment;
                     length = matchedAlign.length;
                     if (length == 0) break;
-                    nowMappedLength += length;
-                    insertAlign(results, matchedAlign);
+                    matchedLength += length;
+                    insertAlignResults(results, matchedAlign);
                     if (length == splitLength) fullMatch = true;
                 } while (length > 0);
                 if (fullMatch) break;
@@ -116,8 +122,11 @@ namespace RefactorProcessing {
             int64_t leftHash = extendHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = extendHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
+
+            int64_t rightUpperRange = patternMerMap_.get(rightHash, patternMerMap_.INDEX_UPPER_RANGE);
+            if (rightUpperRange == patternMerMap_.EMPTY_UPPER_RANGE) rightUpperRange = -1;
             size_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
-                                 patternMerMap_.get(rightHash, patternMerMap_.INDEX_UPPER_RANGE);
+                                 rightUpperRange;
             result.length = l;
             result.leftSAIndex = leftSAIndex;
             result.rightSAIndex = rightSAIndex;
@@ -134,8 +143,10 @@ namespace RefactorProcessing {
             int64_t leftHash = matchedHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = matchedHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
+            int64_t rightUpperRange = patternMerMap_.get(rightHash, patternMerMap_.INDEX_UPPER_RANGE);
+            if (rightUpperRange == patternMerMap_.EMPTY_UPPER_RANGE) rightUpperRange = -1;
             size_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
-                                 patternMerMap_.get(rightHash  , patternMerMap_.INDEX_UPPER_RANGE);
+                                 rightUpperRange;
             if (rightSAIndex - leftSAIndex + 1 > 10000){
                 return Align();
             } else {
@@ -156,7 +167,9 @@ namespace RefactorProcessing {
 
         // common situation
         size_t lBound = patternMerMap_.get(hash,patternMerMap_.INDEX_LEFT_SA_INDEX);
-        size_t num = patternMerMap_.get(hash,patternMerMap_.INDEX_UPPER_RANGE) + 1;
+        int64_t upperRange = patternMerMap_.get(hash, patternMerMap_.INDEX_UPPER_RANGE);
+        if (upperRange == patternMerMap_.EMPTY_UPPER_RANGE) upperRange = -1;
+        size_t num = upperRange + 1;
         size_t rBound = lBound + num;
 
         //no need to search in extend hash table
@@ -196,8 +209,8 @@ namespace RefactorProcessing {
                     int rInd = mid;
                     while (right - rInd > 1){
                         int midRight = (rInd + right) / 2;
-                        if (extendedIndexHash_[extendIndexHashBase +midRight] <rHash) rInd = mid;
-                        else if (extendedIndexHash_[extendIndexHashBase +midRight] > rHash) right = mid;
+                        if (extendedIndexHash_[extendIndexHashBase +midRight] <rHash) rInd = midRight;
+                        else if (extendedIndexHash_[extendIndexHashBase +midRight] > rHash) right = midRight;
                         else {
                             right = midRight;
                             while (right < extendHashTableNum_ && extendedIndexHash_[extendIndexHashBase +right] == rHash) ++right;
