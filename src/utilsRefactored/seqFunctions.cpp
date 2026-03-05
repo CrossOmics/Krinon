@@ -1,3 +1,4 @@
+#include <cstdint>
 #include "defines.h"
 #include "seqFunctions.h"
 

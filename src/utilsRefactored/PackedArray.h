@@ -1,6 +1,7 @@
 #ifndef RNAALIGNREFACTORED_PACKEDARRAYR_H
 #define RNAALIGNREFACTORED_PACKEDARRAYR_H
 //todo
+#include <cstdint>
 
 #include <string>
 namespace RefactorProcessing {
