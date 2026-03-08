@@ -10,9 +10,9 @@ namespace RefactorProcessing{
         if (buildMethod == "SAIS") buildSAIS(seq);
         else if (buildMethod == "CAPS") buildCAPS(seq);
         else if (buildMethod == "Traditional") buildTraditional(seq);
-        for (int i = 0; i<10;++i){
+        /*for (int i = 0; i<10;++i){
             std::cout << suffixArray_[i] << " ";
-        }
+        }*/
         /*SuffixArray debug;
         debug.buildSAIS(seq);
         std::cout << "valid length:" << length_ <<"\n";

@@ -424,7 +424,7 @@ namespace RefactorProcessing{
             p[i] = c < 0 ? 5 : c + 1;
         }
         p[n] = 0;
-        size_t saLen = std::max(n, (int64_t) 256);
+        size_t saLen = std::max(patLen, (size_t) 256);
         auto* rawSA = new size_t[saLen + reservedLength];
         memset(rawSA,0, (saLen + reservedLength) * sizeof(size_t));
         size_t* sa = rawSA + reservedLength;
