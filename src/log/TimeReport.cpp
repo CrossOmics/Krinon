@@ -44,6 +44,7 @@ namespace RefactorProcessing {
                            << "Now speed: \t"
                            <<std::fixed << std::setprecision(1)
                            << double (reads) * 3600.0 / 1000000*double (totalTime) << "M reads/hour\n";
+                outputFile.flush();
             }
         }
 

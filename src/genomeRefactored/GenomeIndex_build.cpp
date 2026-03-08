@@ -5,9 +5,13 @@
 #include "../utilsRefactored/timeFunctions.h"
 
 namespace RefactorProcessing {
-    GenomeIndex::GenomeIndex() = default;
+    GenomeIndex::GenomeIndex(){
+        //std::cout << "GenomeIndex constructor\n";
+    };
 
-    GenomeIndex::~GenomeIndex() = default;
+    GenomeIndex::~GenomeIndex(){
+        std::cout << "GenomeIndex destructor\n";
+    };
 
     void GenomeIndex::setParam(const Parameters &P) {
         suffixArray_.setParam(P);

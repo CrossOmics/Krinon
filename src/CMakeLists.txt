@@ -37,6 +37,7 @@ add_executable(RNAAlignRefactored   main.cpp
                                     genomeRefactored/SuffixArray.cpp
                                     genomeRefactored/SuffixArray_build_traditional.cpp
                                     genomeRefactored/SuffixArray_build_SAIS.cpp
+                                    genomeRefactored/SuffixArray_build_CAPS.cpp
                                     genomeRefactored/SuffixArrayKMerMap.cpp
                                     genomeRefactored/SJDB.cpp
                                     readAlignRefactored/Stitching.cpp
@@ -45,4 +46,10 @@ add_executable(RNAAlignRefactored   main.cpp
                                     readAlignRefactored/ReadMerger.cpp
                                     readAlignRefactored/ReadAligner.cpp
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(RNAAlignRefactored PRIVATE -march=native)
+elseif(MSVC)
+    target_compile_options(RNAAlignRefactored PRIVATE /arch:AVX2)
+endif()
 target_link_libraries(RNAAlignRefactored PUBLIC OpenMP::OpenMP_CXX)

@@ -46,6 +46,7 @@ namespace RefactorProcessing {
         // different building methods
         void buildTraditional(const std::string &seq);
         void buildSAIS(const std::string &seq);
+        void buildCAPS(const std::string &seq);
 
         int writeToFile(const std::string &fileName) const;
 

@@ -8,10 +8,22 @@
 namespace RefactorProcessing{
     void SuffixArray::build(const std::string &seq) {
         if (buildMethod == "SAIS") buildSAIS(seq);
+        else if (buildMethod == "CAPS") buildCAPS(seq);
         else if (buildMethod == "Traditional") buildTraditional(seq);
         for (int i = 0; i<10;++i){
             std::cout << suffixArray_[i] << " ";
         }
+        /*SuffixArray debug;
+        debug.buildSAIS(seq);
+        std::cout << "valid length:" << length_ <<"\n";
+        for (int i = 0; i < seq.length();++i){
+            if (suffixArray_[i] != debug[i]){
+                std::cout << "bug at "<< i <<"\n";
+                std::cout << suffixArray_[i] << " " << debug[i] << "\n";
+                break;
+            }
+
+        }*/
         std::cout << "\n";
     }
 

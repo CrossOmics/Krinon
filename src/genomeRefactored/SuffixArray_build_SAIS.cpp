@@ -8,7 +8,7 @@ namespace RefactorProcessing{
     constexpr size_t EMPTY = std::numeric_limits<int64_t>::max() / 2 + 1;
     constexpr size_t UNIQUE = EMPTY + 1;
     constexpr size_t MULTI = EMPTY + 2;
-    bool patCharType(size_t cur, size_t prev, bool lastScanned) {
+    inline bool patCharType(size_t cur, size_t prev, bool lastScanned) {
         return (cur < prev) || (cur == prev && lastScanned);
     }
 

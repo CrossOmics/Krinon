@@ -16,20 +16,23 @@ namespace RefactorProcessing{
     }
 
     void OutputSAM::outputSAM(char* samRecord, size_t size) {
-        outputFileLock_.lock();
+
+
         if (!outputFile_ || fileSize_ == 0) {
             rna::ErrorRecord().reportError("Output file is not available for writing");
             return;
         }
+        outputFileLock_.lock();
         if (mmapPos_ + size > fileSize_) {
             outputFile_->ensureSize(fileSize_ * 2); // double the file size
             fileSize_ = outputFile_->size();
         }
-        char* base = outputFile_->getMapPtr();
-        std::memcpy(base + mmapPos_, samRecord, size);
-
+        char* base = outputFile_->getMapPtr() + mmapPos_;
         mmapPos_ += size;
         outputFileLock_.unlock();
+        std::memcpy(base, samRecord, size);
+
+
     }
 
     void OutputSAM::close() {
