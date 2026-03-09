@@ -32,7 +32,7 @@ namespace RefactorProcessing {
         size_t l1 = seq1.length();
         size_t l2 = seq2.length();
         size_t l = std::min(l1, l2);
-        for (int i = 0; i < l; ++i) {
+        for (size_t i = 0; i < l; ++i) {
             if(seq1[i] == seq2[i]) continue;
             if (seq1[i] == 'N' || seq1[i] == '#') return false;
             if (seq2[i] == 'N' || seq2[i] == '#') return true;

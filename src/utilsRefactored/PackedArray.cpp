@@ -1,8 +1,9 @@
 #include "PackedArray.h"
 #include <fstream>
+#include <cstring>
 
 namespace RefactorProcessing {
-    PackedArray::PackedArray() : data(nullptr), allocated(false) {};
+    PackedArray::PackedArray() : data(nullptr), allocated(false) {}
 
     PackedArray::~PackedArray() {
         if (allocated) delete[] data;
@@ -17,6 +18,7 @@ namespace RefactorProcessing {
         bitMask_ = (~0ULL) >> wordCompLength_;
         arrayLength_ = ((wordNum_ + reservedLength_) * wordLengthBits_ + 63) / 64;
         data = new uint64_t[arrayLength_];
+        std::memset(data, 0, arrayLength_ * sizeof(uint64_t));
         allocated = true;
     }
 

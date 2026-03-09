@@ -23,7 +23,7 @@ namespace RefactorProcessing {
         //data
         PackedArray suffixArray_; // Suffix Array
 
-        int64_t length_;
+        size_t length_;
 
         int64_t wordBits_;
 
@@ -52,5 +52,5 @@ namespace RefactorProcessing {
         int loadFromFile(const std::string &fileName);
 
     };
-};
+}
 #endif //RNAALIGNREFACTORED_SUFFIXARRAYR_H

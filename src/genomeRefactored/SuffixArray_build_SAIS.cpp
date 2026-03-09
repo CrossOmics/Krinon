@@ -119,7 +119,7 @@ namespace RefactorProcessing{
         size_t bucket = EMPTY;
         size_t numS = 0;
 
-        for (int64_t i = patLen - 1; i > 0; --i) {
+        for (size_t i = patLen - 1; i > 0; --i) {
             size_t v = pat[sa[i]];
             if (v != bucket) {
                 numS = 0;
@@ -152,6 +152,8 @@ namespace RefactorProcessing{
     }
 
     bool constructPat1(size_t *pat, size_t *sa, size_t lmsCnt, size_t patLen, size_t saLen){
+        // `saLen` is unused ...
+        std::clog << saLen << std::endl;
         size_t rank = 0;
         size_t prevLen = 1;
         bool dup = false;
@@ -236,6 +238,8 @@ namespace RefactorProcessing{
 
     void inducedSort(size_t *pat, size_t *sa, size_t patLen, size_t saLen){
         bool lastType = true;
+        // `saLen` is unused ...
+        std::clog << saLen << std::endl;
         for (int64_t j = patLen - 2; j >= 0; --j) {
             if (patCharType(pat[j], pat[j + 1], lastType)) {
                 lastType = true;
@@ -245,7 +249,7 @@ namespace RefactorProcessing{
             }
         }
 
-        int64_t i = 0;
+        size_t i = 0;
         while (i < patLen) {
             if (sa[i] < EMPTY && sa[i] > 0) {
                 size_t j = sa[i] - 1;
@@ -414,7 +418,7 @@ namespace RefactorProcessing{
 
     void SuffixArray::buildSAIS(const std::string &seq) {
 
-        const int64_t n = seq.length();
+        const size_t n = seq.length();
 
 
         size_t patLen = n + 1;
@@ -424,7 +428,7 @@ namespace RefactorProcessing{
             p[i] = c < 0 ? 5 : c + 1;
         }
         p[n] = 0;
-        size_t saLen = std::max(n, (int64_t) 256);
+        size_t saLen = std::max(patLen, (size_t) 256);
         auto* rawSA = new size_t[saLen + reservedLength];
         memset(rawSA,0, (saLen + reservedLength) * sizeof(size_t));
         size_t* sa = rawSA + reservedLength;

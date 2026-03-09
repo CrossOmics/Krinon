@@ -25,8 +25,8 @@ namespace RefactorProcessing {
 
     struct Chromosome {
         std::string name;
-        int64_t start;
-        int64_t length;
+        size_t start;
+        size_t length;
     };
 
     class Genome {

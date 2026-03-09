@@ -39,7 +39,7 @@ namespace RefactorProcessing {
         }
 
         if (chromosomeNameToIndex_.empty()) {
-            for (int i = 0; i < genome.chromosomes_.size(); ++i) {
+            for (size_t i = 0; i < genome.chromosomes_.size(); ++i) {
                 chromosomeNameToIndex_[genome.chromosomes_[i].name] = i;
             }
         }
@@ -101,7 +101,7 @@ namespace RefactorProcessing {
                 std::vector<std::string> exAttr; //trID, gID, gName, gBiotype
                 exAttr.resize(exAttrNames.size());
 
-                for (int ii = 0; ii < exAttrNames.size(); ii++) {
+                for (size_t ii = 0; ii < exAttrNames.size(); ii++) {
                     for (auto &attr1: exAttrNames[ii]) {//scan through possible names
                         size_t pos1 = nowLine.find(" " + attr1 + " "); //attribute name is separated by spaces
                         if (pos1 != std::string::npos)
@@ -201,7 +201,7 @@ namespace RefactorProcessing {
         size_t trID = exonLoci_[0].trID;
 
         for (size_t i = 1; i < exonNum; ++i) {
-            if (trID == exonLoci_[i].trID) {
+            if (trID == (size_t) exonLoci_[i].trID) {
                 size_t chr = genome.getPosChrIndex(exonLoci_[i].start);
                 if (exonLoci_[i].start <= exonLoci_[i - 1].end + 1) {
                     //touching or overlapping exons
@@ -303,8 +303,8 @@ namespace RefactorProcessing {
         std::string_view sv(sjdb.sjdbSeq_);
         omp_set_num_threads(8);
 #pragma omp parallel for
-        for (size_t i = 0; i < 2 * genome_.sjdbNum_; ++i) {
-            for (size_t sjStart = 0; sjStart < sjdb.sjdbLength; ++sjStart) {
+        for (size_t i = 0; i < (size_t) (2 * genome_.sjdbNum_); ++i) {
+            for (size_t sjStart = 0; sjStart < (size_t) sjdb.sjdbLength; ++sjStart) {
                 size_t ind = i * sjdb.sjdbLength + sjStart;
                 if (sv[i * sjdb.sjdbLength + sjStart] == '#' ||
                     sv[i * sjdb.sjdbLength + sjStart] == 'N') {
@@ -319,8 +319,12 @@ namespace RefactorProcessing {
 
         }
         int trueIndNum = 0;
-        for (size_t i = 0; i < 2 * sjSeqLength; ++i) {
-            if (insertPos[i].pos != -1){
+        for (size_t i = 0; i < (size_t) (2 * sjSeqLength); ++i) {
+            /**
+             * TODO: Again, comparison between signed and unsigned ...
+             *       This one in particular looks unintended ...
+             */
+            if (insertPos[i].pos != (size_t) -1){
                 insertPos[trueIndNum] = insertPos[i];
                 trueIndNum++;
             }
@@ -328,6 +332,11 @@ namespace RefactorProcessing {
 
         std::sort(insertPos.begin(),insertPos.begin() + trueIndNum,insertRecordComparator(sjdb.sjdbSeq_.c_str()));
 
+        /**
+         * TODO: What's going on here??
+         *       Are we really sure that we want to assign a negative value to
+         *       an unsigned integer?
+         */
         insertPos[trueIndNum].pos = -999;
 
         int64_t nowInsertSjIndex = 0;
@@ -370,7 +379,7 @@ namespace RefactorProcessing {
         for (size_t i = 0; i < genome_.sequence_.length(); ++i) rk.setValue(i, 0);
         for (size_t i = 0; i < suffixArray_.length_; ++i) rk.setValue(suffixArray_[i], i);
         size_t k = 0;
-        for (int64_t i = 0; i < genome_.sequence_.length(); ++i) {
+        for (size_t i = 0; i < genome_.sequence_.length(); ++i) {
             size_t j = rk[i];
             if (j == 0) {
                 k = 0;
@@ -386,16 +395,16 @@ namespace RefactorProcessing {
         std::vector<sjHash> sjHashRecord;
         sjHashRecord.resize(sjSeqLength * 2, {-1, 0});
 
-        for (int i = 0; i < sjSeqLength * 2; ++i) {
+        for (size_t i = 0; i < (size_t) (sjSeqLength * 2); ++i) {
             int32_t hash = 0;
             bool foundInvalid = false;
-            for (int j = 0;j < kMerSize_; ++j) {
-                if (i+j >= sjSeqLength * 2){
+            for (size_t j = 0; j < kMerSize_; ++j) {
+                if (i+j >= (size_t) (sjSeqLength * 2)){
                     foundInvalid = true;
                     if (j == 0) sjHashRecord[i] = {-1, 0};
                     else {
                         hash = ((hash + 1) << (2 * (kMerSize_ - j))) - 1;
-                        sjHashRecord[i] = {hash,  j};
+                        sjHashRecord[i] = {hash, (uint32_t) j};
                     }
                     break;
                 }
@@ -405,7 +414,7 @@ namespace RefactorProcessing {
                     if (j == 0) sjHashRecord[i] = {-1, 0};
                     else {
                         hash = ((hash + 1) << (2 * (kMerSize_ - j))) - 1;
-                        sjHashRecord[i] = {hash,  j};
+                        sjHashRecord[i] = {hash,  (uint32_t) j};
                     }
                     break;
                 }
@@ -420,10 +429,10 @@ namespace RefactorProcessing {
         int32_t prevHashInsert = -1;
         int32_t nowHashInsert = 0;
 
-        for (size_t i = 0; i < sjSeqLength * 2; ++i) {
+        for (size_t i = 0; i < (size_t) (sjSeqLength * 2); ++i) {
             if (sjHashRecord[i].hash == -1) continue;
             nowHashInsert = sjHashRecord[i].hash;
-            int32_t length = sjHashRecord[i].length;
+            uint32_t length = sjHashRecord[i].length;
             if (length == 0) continue; // should not happen
             if (nowHashInsert != prevHashInsert) {
                 if (prevHashInsert != -1) {
@@ -442,15 +451,41 @@ namespace RefactorProcessing {
                 int64_t nowUpperRange = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE);
                 patternMerMap_.set(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE,nowUpperRange + 1);
             }
-            int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
-            if (originalLength < length) {
+            /**
+             * TODO: The casting here makes me worried. Are you sure you want 
+             *       `patternMerMap_.get` to return signed valued?
+             *       If so, why cast it to 32 bits here?
+             */
+            // int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
+            int64_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
+            if (originalLength < (int64_t) length) {
                 patternMerMap_.set(nowHashInsert,patternMerMap_.INDEX_LENGTH,length);
             }
         }
 
         if (prevHashInsert != -1) {
-            for (int32_t j = prevHashInsert + 1; j < kMerNum_; ++j) {
-                int64_t nowLeftSAIndex = patternMerMap_.get(j,patternMerMap_.INDEX_LEFT_SA_INDEX);
+            /**
+             * TODO: This comparison also looks unintended.
+             *       Comparing a 32 bit int with a 64 bit unsigned is fishy.
+             *       I will cast `kMerNum_` to signed value and abort if it overflowed.
+             */
+            uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+            if (kMerNum_ > max_int64) {
+                std::cerr << "FATAL: kMerNum_ overflow!";
+                std::abort();
+            }
+
+            for (int32_t j = prevHashInsert + 1; (int64_t) j < (int64_t) kMerNum_; ++j) {
+                /**
+                 * TODO: Since `patternMerMap_.get` expects unsigned values, are we completely sure that
+                 *       `j` cannot be negative?
+                 *       Again, I will put a runtime check for now and abort if it is not.
+                 */
+                if (j < 0) {
+                    std::cerr << "FATAL: index overflow!";
+                    std::abort();
+                }
+                int64_t nowLeftSAIndex = patternMerMap_.get(j, patternMerMap_.INDEX_LEFT_SA_INDEX);
                 patternMerMap_.set(j,patternMerMap_.INDEX_LEFT_SA_INDEX,nowLeftSAIndex + nowShift);
             }
             // rebuild secondary index for prevHashInsert
@@ -658,7 +693,7 @@ namespace RefactorProcessing {
         sjAcceptorStart_.reserve(sjdbNum_);
 
         size_t sjGStart = 0;
-        for (size_t i = 0; i < sjdbNum_; ++i) {
+        for (int64_t i = 0; i < sjdbNum_; ++i) {
             sjDonorStart_[i] = sjDataBase_[i].start - sjdb.sjdbOverhang;
             sjAcceptorStart_[i] = sjDataBase_[i].end + 1;
 

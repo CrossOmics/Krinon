@@ -17,7 +17,7 @@ namespace RefactorProcessing {
         int64_t length = a.length;
 
         // find the position to insert
-        for (int i = 0; i < results.size(); ++i) {
+        for (size_t i = 0; i < results.size(); ++i) {
             if (results[i].readPos < readStart) continue;
             if (results[i].readPos == readStart) {
                 if (results[i].length < length) continue;
@@ -121,11 +121,11 @@ namespace RefactorProcessing {
             if (hash == -1) return Align();
             int64_t leftHash = extendHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = extendHashRight(hash, kMerSize_ - l);
-            size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
+            int64_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
 
             int64_t rightUpperRange = patternMerMap_.get(rightHash, patternMerMap_.INDEX_UPPER_RANGE);
             if (rightUpperRange == patternMerMap_.EMPTY_UPPER_RANGE) rightUpperRange = -1;
-            size_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
+            int64_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
                                  rightUpperRange;
             result.length = l;
             result.leftSAIndex = leftSAIndex;
@@ -139,7 +139,7 @@ namespace RefactorProcessing {
 
         int64_t hash = encodeKmer(seq.substr(0,kMerSize_),kMerSize_);
         int l = patternMerMap_.get(hash, patternMerMap_.INDEX_LENGTH);
-        if (l < kMerSize_ || seq.length() == kMerSize_){
+        if (l < (int) kMerSize_ || seq.length() == kMerSize_){
             int64_t leftHash = matchedHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = matchedHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
@@ -150,7 +150,7 @@ namespace RefactorProcessing {
             if (rightSAIndex - leftSAIndex + 1 > 10000){
                 return Align();
             } else {
-                int64_t nowRightSAIndex = rightSAIndex;
+                size_t nowRightSAIndex = rightSAIndex;
                 while (longestCommonPrefix_[nowRightSAIndex + 1] >= l) {
                     ++nowRightSAIndex;
                     if (nowRightSAIndex >= suffixArray_.length_) break;
@@ -166,11 +166,11 @@ namespace RefactorProcessing {
         }
 
         // common situation
-        size_t lBound = patternMerMap_.get(hash,patternMerMap_.INDEX_LEFT_SA_INDEX);
+        int64_t lBound = patternMerMap_.get(hash,patternMerMap_.INDEX_LEFT_SA_INDEX);
         int64_t upperRange = patternMerMap_.get(hash, patternMerMap_.INDEX_UPPER_RANGE);
         if (upperRange == patternMerMap_.EMPTY_UPPER_RANGE) upperRange = -1;
-        size_t num = upperRange + 1;
-        size_t rBound = lBound + num;
+        int64_t num = upperRange + 1;
+        int64_t rBound = lBound + num;
 
         //no need to search in extend hash table
         if (num <= extendHashTableNum_) return findMMP_GetRange(seq,lBound,rBound,l);
@@ -277,13 +277,17 @@ namespace RefactorProcessing {
                 size_t leftPos = mid;
                 size_t rightPos = mid;
                 // left range
-                int64_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+                /**
+                 * Again, what is going on here?
+                 * We are comparing what we know is 8 bits with 64 bits?
+                 */
+                uint8_t leftCommonPrefix = longestCommonPrefix_[leftPos];
                 while (leftCommonPrefix >= midLength) {
                     --leftPos;
                     leftCommonPrefix = longestCommonPrefix_[leftPos];
                 }
                 // right range
-                int64_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+                uint8_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
                 while (rightCommonPrefix >= midLength) {
                     ++rightPos;
                     rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
@@ -312,7 +316,7 @@ namespace RefactorProcessing {
         //left range
         if (lLength == longestLength) {
             leftPos = rangeLeft;
-            int64_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+            uint8_t leftCommonPrefix = longestCommonPrefix_[leftPos];
             ++cnt;
             while (leftCommonPrefix >= longestLength) {
                 --leftPos;
@@ -332,7 +336,12 @@ namespace RefactorProcessing {
         //right range
         if (rLength == longestLength) {
             rightPos = rangeRight;
-            int64_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+            /**
+             * TODO: What's happening here? 
+             * The LCP is 8-bit unsigned, and we are comparing 
+             * against a 64-bit unsigned?
+             */
+            uint8_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
             ++cnt;
             while (rightCommonPrefix >= longestLength) {
                 ++rightPos;

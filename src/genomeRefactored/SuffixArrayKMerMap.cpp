@@ -7,8 +7,10 @@ namespace RefactorProcessing{
         ELEMENT_BIT_LENGTHS[INDEX_LENGTH] = INDEX_LENGTH_BITS;
         ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] = INDEX_LEFT_SA_INDEX_BITS;
         ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE] = INDEX_UPPER_RANGE_BITS;
-        EMPTY_UPPER_RANGE = (1ULL << INDEX_UPPER_RANGE_BITS) - 1;
-        EMPTY_SA_INDEX = (1ULL << INDEX_LEFT_SA_INDEX_BITS) - 1;
+        // EMPTY_UPPER_RANGE = (1ULL << INDEX_UPPER_RANGE_BITS) - 1;
+        // EMPTY_SA_INDEX = (1ULL << INDEX_LEFT_SA_INDEX_BITS) - 1;
+        EMPTY_UPPER_RANGE = (1LL << INDEX_UPPER_RANGE_BITS) - 1;
+        EMPTY_SA_INDEX = (1LL << INDEX_LEFT_SA_INDEX_BITS) - 1;
         BIT_OFFSETS[INDEX_LENGTH] = 0;
         BIT_OFFSETS[INDEX_LEFT_SA_INDEX] = INDEX_LENGTH_BITS;
         BIT_OFFSETS[INDEX_UPPER_RANGE] = INDEX_LENGTH_BITS + INDEX_LEFT_SA_INDEX_BITS;
@@ -127,8 +129,10 @@ namespace RefactorProcessing{
         ELEMENT_BIT_LENGTHS[INDEX_LENGTH] = indexLengthBits;
         ELEMENT_BIT_LENGTHS[INDEX_LEFT_SA_INDEX] = indexLeftSAIndexBits;
         ELEMENT_BIT_LENGTHS[INDEX_UPPER_RANGE] = indexUpperRangeBits;
-        EMPTY_UPPER_RANGE = (1ULL << indexUpperRangeBits) - 1;
-        EMPTY_SA_INDEX = (1ULL << indexLeftSAIndexBits) - 1;
+        // EMPTY_UPPER_RANGE = (1ULL << indexUpperRangeBits) - 1;
+        // EMPTY_SA_INDEX = (1ULL << indexLeftSAIndexBits) - 1;
+        EMPTY_UPPER_RANGE = (1LL << indexUpperRangeBits) - 1;
+        EMPTY_SA_INDEX = (1LL << indexLeftSAIndexBits) - 1;
         BIT_OFFSETS[INDEX_LENGTH] = 0;
         BIT_OFFSETS[INDEX_LEFT_SA_INDEX] = indexLengthBits;
         BIT_OFFSETS[INDEX_UPPER_RANGE] = indexLengthBits + indexLeftSAIndexBits;

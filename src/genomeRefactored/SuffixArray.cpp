@@ -9,9 +9,9 @@ namespace RefactorProcessing{
     void SuffixArray::build(const std::string &seq) {
         if (buildMethod == "SAIS") buildSAIS(seq);
         else if (buildMethod == "Traditional") buildTraditional(seq);
-        for (int i = 0; i<10;++i){
+        /*for (int i = 0; i<10;++i){
             std::cout << suffixArray_[i] << " ";
-        }
+        }*/
         std::cout << "\n";
     }
 

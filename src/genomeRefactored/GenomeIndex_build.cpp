@@ -52,16 +52,16 @@ namespace RefactorProcessing {
         PackedArray rk;
         size_t sequenceLength = genome_.sequence_.length();
         rk.initialize(sequenceLength, suffixArray_.wordBits_);
-        for (int64_t i = 0; i < sequenceLength; ++i) {
+        for (size_t i = 0; i < sequenceLength; ++i) {
             rk.setValue(i, 0);
         }
-        for (int64_t i = 0; i < suffixArray_.length_; ++i) {
+        for (size_t i = 0; i < suffixArray_.length_; ++i) {
             rk.setValue(suffixArray_[i], i);
         }
 
         //todo optimize: multi-thread
         size_t k = 0;
-        for (int64_t i = 0; i < sequenceLength; ++i) {
+        for (size_t i = 0; i < sequenceLength; ++i) {
             size_t j = rk[i];
             if (j == 0) {
                 k = 0;
@@ -98,28 +98,29 @@ namespace RefactorProcessing {
         // calculate the appearance of each k-mer in the genome
         std::vector<std::vector<int8_t>> appearance_flag; // records the appearance of each k-mer in the genome
         appearance_flag.resize(kMerSize_ + 1); // 0 is empty, for convenience
-        for (int i = 1; i <= kMerSize_; ++i) {
-            appearance_flag[i].resize(1 << (std::max(2 * i - 3, 0)), 0);
+        for (int i = 1; i <= (int) kMerSize_; ++i) {
+            size_t reserve_len = (1LU << (std::max(2 * i - 3, 0)));
+            appearance_flag[i].resize(reserve_len, 0);
         }
         std::vector<int64_t> nowWindowHash;
         nowWindowHash.resize(kMerSize_ + 1, 0); // Also, 0 is empty
-        int nowAvailableLength = 0;
+        size_t nowAvailableLength = 0;
         const std::string &seq = genome_.sequence_;
-        int64_t genomeLength = genome_.sequence_.length();
+        size_t genomeLength = genome_.sequence_.length();
         for (size_t i = 0; i < genomeLength; ++i) {
             charToIndex(seq[i]) >= 0 ? ++nowAvailableLength : nowAvailableLength = 0;
-            if (nowAvailableLength == 0) continue;
+            if (nowAvailableLength == 0U) continue;
             if (nowAvailableLength <= kMerSize_) {
                 nowWindowHash[nowAvailableLength] = (nowWindowHash[nowAvailableLength - 1] << 2) | charToIndex(seq[i]);
-                for (int j = 1; j < nowAvailableLength; ++j) {
+                for (size_t j = 1; j < nowAvailableLength; ++j) {
                     nowWindowHash[j] = (nowWindowHash[j] << 2) | charToIndex(seq[i]);
                     nowWindowHash[j] &= (1 << (2 * j)) - 1; // keep only the last 2*j bits
                 }
-                for (int j = 1; j <= nowAvailableLength; ++j) {
+                for (size_t j = 1; j <= nowAvailableLength; ++j) {
                     setFlag(nowWindowHash[j], j,appearance_flag);
                 }
             } else {
-                for (int j = 1; j <= kMerSize_; ++j) {
+                for (size_t j = 1; j <= kMerSize_; ++j) {
                     nowWindowHash[j] = (nowWindowHash[j] << 2) | charToIndex(seq[i]);
                     nowWindowHash[j] &= (1 << (2 * j)) - 1; // keep only the last 2*j bits
                     setFlag(nowWindowHash[j], j,appearance_flag);
@@ -144,12 +145,12 @@ namespace RefactorProcessing {
 
         int64_t prevHash = -1;
         //initialize
-        for (int64_t i = 0; i < kMerNum_ - 1; ++i) {
+        for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             patternMerMap_.set(i, patternMerMap_.INDEX_LEFT_SA_INDEX, patternMerMap_.EMPTY_SA_INDEX);
             patternMerMap_.set(i, patternMerMap_.INDEX_UPPER_RANGE, patternMerMap_.EMPTY_UPPER_RANGE);
         }
 
-        for (int64_t i = 0; i < suffixArray_.length_; ++i){
+        for (size_t i = 0; i < suffixArray_.length_; ++i){
             int64_t hash = encodeKmer(seq.substr(suffixArray_[i],kMerSize_),kMerSize_);
 
             if (hash > prevHash){
@@ -170,7 +171,7 @@ namespace RefactorProcessing {
             patternMerMap_.set(prevHash,patternMerMap_.INDEX_UPPER_RANGE,(suffixArray_.length_ - 1 - patternMerMap_.get(prevHash, patternMerMap_.INDEX_LEFT_SA_INDEX)));
 
         int64_t prevRightBound = 0;
-        for (int64_t i = 0; i < kMerNum_ - 1; ++i) {
+        for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             if (patternMerMap_.get(i, patternMerMap_.INDEX_LENGTH) < kMerSize_) {
                 patternMerMap_.set(i, patternMerMap_.INDEX_LEFT_SA_INDEX, prevRightBound + 1);
             } else {

@@ -7,7 +7,10 @@ namespace RefactorProcessing{
         outputBufferSize_ = P.outputBufferSize;
         r1Length_ = 0;
         r2Length_ = 0;
-
+        std::cout << "\t[isPaired]: " << P.isPaired << "\n" <<
+            "\t[isPaired]: " << P.isPaired << "\n" <<
+            "\t[readBufferSize]: " << P.readBufferSize << "\n" <<
+            "\t[outputBufferSize]: " << P.outputBufferSize << std::endl;
     }
 
     void ReadAlignerSingleThread::init(ReadScanner *rs, OutputSAM *o,TimeReport* t,const Parameters &P,int threadId,int threadNum) {
@@ -31,6 +34,7 @@ namespace RefactorProcessing{
 
         seedMapping_.setParam(P);
         stitchingManagement_.setParam(P);
+        std::cout << "Calling init on management" << std::endl;
         stitchingManagement_.init(&seedMapping_.aligns_);
 
         readScanner_ = rs;
@@ -106,10 +110,14 @@ namespace RefactorProcessing{
 
     void ReadAligner::init(const Parameters &P, int threadNum) {
         setParam(P);
+        std::cout << "Loading genome file ..." << std::endl;
         loadGenome();
+        std::cout << "Current genome length: " << this->gIndex_.genome_.genomeLength_ << std::endl;
+        std::cout << "Genome loading done" << std::endl;
         aligners_.reserve(threadNum);
         for (int i = 0; i < threadNum; ++i) {
             aligners_.emplace_back(new ReadAlignerSingleThread(gIndex_));
+            std::cout << "Init on aligner thread " << i << std::endl;
             aligners_[i]->init(&readScanner_, &outputSAM_, &timeReport_, P, i, threadNum);
         }
     }

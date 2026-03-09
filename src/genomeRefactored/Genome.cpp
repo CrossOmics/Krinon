@@ -37,18 +37,18 @@ namespace RefactorProcessing {
         std::string line;
         std::stringstream currentSeq;
         std::string currentChr;
-        int64_t currentStart = 0;
+        size_t currentStart = 0;
 
         while (std::getline(file, line)) {
             if (line.empty()) continue;
             if (line[0] == '>') {
                 if (!currentChr.empty()) {
-                    int64_t currentPos = static_cast<int64_t>(currentSeq.tellp());
-                    int64_t chrLen = currentPos - currentStart;
+                    size_t currentPos = static_cast<size_t>(currentSeq.tellp());
+                    size_t chrLen = currentPos - currentStart;
 
-                    int64_t paddingLen = ((chrLen + (1 << binSizeLog_)) & ~((1 << binSizeLog_) - 1)) - chrLen;
+                    size_t paddingLen = ((chrLen + (1 << binSizeLog_)) & ~((1 << binSizeLog_) - 1)) - chrLen;
 
-                    for (int64_t i = 0; i < paddingLen; ++i) {
+                    for (size_t i = 0; i < paddingLen; ++i) {
                         currentSeq << SPACING_CHAR;
                     }
 
@@ -81,10 +81,10 @@ namespace RefactorProcessing {
 
         if (!currentChr.empty()) {
 
-            int64_t currentPos = static_cast<int64_t>(currentSeq.tellp());
-            int64_t chrLen = currentPos - currentStart;
-            int64_t paddingLen = ((chrLen + (1 << binSizeLog_) - 1) & ~((1 << binSizeLog_) - 1)) - chrLen;
-            for (int64_t i = 0; i < paddingLen; ++i) {
+            size_t currentPos = static_cast<size_t>(currentSeq.tellp());
+            size_t chrLen = currentPos - currentStart;
+            size_t paddingLen = ((chrLen + (1 << binSizeLog_) - 1) & ~((1 << binSizeLog_) - 1)) - chrLen;
+            for (size_t i = 0; i < paddingLen; ++i) {
                 currentSeq << SPACING_CHAR;
             }
             chromosomes_.push_back(Chromosome{
