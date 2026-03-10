@@ -96,7 +96,7 @@ namespace RefactorProcessing {
 
     struct sjHash{
         int32_t hash;
-        int32_t length;
+        unsigned int length;
         bool operator<(const sjHash &b) const {
             if (hash != b.hash) return hash < b.hash;
             return length > b.length; // AATT# < AAT##

@@ -102,28 +102,29 @@ namespace RefactorProcessing {
         // calculate the appearance of each k-mer in the genome
         std::vector<std::vector<int8_t>> appearance_flag; // records the appearance of each k-mer in the genome
         appearance_flag.resize(kMerSize_ + 1); // 0 is empty, for convenience
-        for (int i = 1; i <= kMerSize_; ++i) {
-            appearance_flag[i].resize(1 << (std::max(2 * i - 3, 0)), 0);
+        for (int i = 1; i <= (int) kMerSize_; ++i) {
+            size_t reserve_len = (1LU << (std::max(2 * i - 3, 0)));
+            appearance_flag[i].resize(reserve_len, 0);
         }
         std::vector<int64_t> nowWindowHash;
         nowWindowHash.resize(kMerSize_ + 1, 0); // Also, 0 is empty
-        int nowAvailableLength = 0;
+        size_t nowAvailableLength = 0;
         const std::string &seq = genome_.sequence_;
         size_t genomeLength = genome_.sequence_.length();
         for (size_t i = 0; i < genomeLength; ++i) {
             charToIndex(seq[i]) >= 0 ? ++nowAvailableLength : nowAvailableLength = 0;
-            if (nowAvailableLength == 0) continue;
+            if (nowAvailableLength == 0U) continue;
             if (nowAvailableLength <= kMerSize_) {
                 nowWindowHash[nowAvailableLength] = (nowWindowHash[nowAvailableLength - 1] << 2) | charToIndex(seq[i]);
-                for (int j = 1; j < nowAvailableLength; ++j) {
+                for (size_t j = 1; j < nowAvailableLength; ++j) {
                     nowWindowHash[j] = (nowWindowHash[j] << 2) | charToIndex(seq[i]);
                     nowWindowHash[j] &= (1 << (2 * j)) - 1; // keep only the last 2*j bits
                 }
-                for (int j = 1; j <= nowAvailableLength; ++j) {
+                for (size_t j = 1; j <= nowAvailableLength; ++j) {
                     setFlag(nowWindowHash[j], j,appearance_flag);
                 }
             } else {
-                for (int j = 1; j <= kMerSize_; ++j) {
+                for (size_t j = 1; j <= kMerSize_; ++j) {
                     nowWindowHash[j] = (nowWindowHash[j] << 2) | charToIndex(seq[i]);
                     nowWindowHash[j] &= (1 << (2 * j)) - 1; // keep only the last 2*j bits
                     setFlag(nowWindowHash[j], j,appearance_flag);
@@ -198,6 +199,7 @@ namespace RefactorProcessing {
         int64_t nowLeftSAIndex = patternMerMap_.get(h,patternMerMap_.INDEX_LEFT_SA_INDEX);
         int64_t num = patternMerMap_.get(h, patternMerMap_.INDEX_UPPER_RANGE);
         int indNum = extendHashTableByte_ / 4;
+        size_t genomeLength = genome_.sequence_.length();
 
         if (num > 16) {
             for (int j = 0; j < indNum; ++j) {
@@ -207,7 +209,12 @@ namespace RefactorProcessing {
                 uint64_t hash = 0;
 
                 for (int k = 0; k < length; ++k) {
-                    int c = charToIndex(genome_.sequence_[index + kMerSize_ + k]);
+                    int c;
+                    if (index + kMerSize_ + k >= genomeLength) {
+                        c = -1;
+                    } else {
+                        c = charToIndex(genome_.sequence_[index + kMerSize_ + k]);
+                    }
                     if (c != -1) {
                         hash <<= 2;
                         hash |= c;

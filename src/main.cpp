@@ -82,10 +82,10 @@ int main(int argc, char* argv[]){
         genomeIndex.writeToFile(Pa.genomeGenerateFileStoreDir+ "GeIndex");
     }
     if (mode == "ReadAlign" || mode == "both") {
-
+        std::cout << "Doing alignment" << std::endl;
         RefactorProcessing::ReadAligner readAligner;
         readAligner.init(Pa,Pa.workingThreads);
-
+        std::cout << "Initialized alignment" << std::endl;
         readAligner.alignReads();
     }
 

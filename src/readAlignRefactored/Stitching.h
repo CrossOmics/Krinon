@@ -261,6 +261,6 @@ namespace RefactorProcessing {
 
 
     };
-};
+}
 
 #endif //RNAALIGNREFACTORED_STITCHINGR_H

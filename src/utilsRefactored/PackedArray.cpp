@@ -3,7 +3,7 @@
 #include <cstring>
 
 namespace RefactorProcessing {
-    PackedArray::PackedArray() : data(nullptr), allocated(false) {};
+    PackedArray::PackedArray() : data(nullptr), allocated(false) {}
 
     PackedArray::~PackedArray() {
         if (allocated) delete[] data;

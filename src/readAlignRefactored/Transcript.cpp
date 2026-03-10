@@ -53,7 +53,7 @@ namespace RefactorProcessing {
             }
             std::string cigar1, cigar2;
             size_t iExon = 0;
-            int64_t mate2StartExon = 0;
+            size_t mate2StartExon = 0;
             for (iExon = 0; iExon < exons.size(); ++iExon) {
                 cigar1 += std::to_string(exons[iExon].length) + "M"; // exon
                 if (iExon < exons.size() - 1) {
@@ -124,7 +124,7 @@ namespace RefactorProcessing {
                 std::reverse(readQual1.begin(),readQual1.end());
                 std::reverse(readQual2.begin(),readQual2.end());
             }
-            int64_t mate2StartInChr = exons[mate2StartExon].genomeStart - (exons[0].genomeStart - posInChr) + 1;
+            size_t mate2StartInChr = exons[mate2StartExon].genomeStart - (exons[0].genomeStart - posInChr) + 1;
 
             read1output = r.name + "\t" + std::to_string(Flag1) + "\t" +
                           chr + "\t" +

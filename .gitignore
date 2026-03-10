@@ -1,0 +1,8 @@
+build
+*.o
+
+# IDE stuff
+.vscode/
+
+# Scripts for convinience. Ignored for now ...
+scripts/

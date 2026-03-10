@@ -53,5 +53,5 @@ namespace RefactorProcessing {
         int loadFromFile(const std::string &fileName);
 
     };
-};
+}
 #endif //RNAALIGNREFACTORED_SUFFIXARRAYR_H

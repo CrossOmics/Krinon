@@ -19,6 +19,13 @@ namespace RefactorProcessing {
         static constexpr int INDEX_LENGTH = 0;
         static constexpr int INDEX_LEFT_SA_INDEX = 1;
         static constexpr int INDEX_UPPER_RANGE = 2;
+        /**
+         * TODO: Make sure about the data type on these ...
+         *       Them being `uint64_t`, when they are always compared to `int64_t`
+         *       is fishy.
+         */
+        // uint64_t EMPTY_UPPER_RANGE;
+        // uint64_t EMPTY_SA_INDEX;
         int64_t EMPTY_UPPER_RANGE;
         int64_t EMPTY_SA_INDEX;
 

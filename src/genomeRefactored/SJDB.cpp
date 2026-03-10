@@ -320,6 +320,10 @@ namespace RefactorProcessing {
         }
         int trueIndNum = 0;
         for (size_t i = 0; i < 2 * sjSeqLength; ++i) {
+            /**
+             * TODO: Again, comparison between signed and unsigned ...
+             *       This one in particular looks unintended ...
+             */
             if (insertPos[i].pos != -1){
                 insertPos[trueIndNum] = insertPos[i];
                 trueIndNum++;
@@ -328,6 +332,11 @@ namespace RefactorProcessing {
 
         std::sort(insertPos.begin(),insertPos.begin() + trueIndNum,insertRecordComparator(sjdb.sjdbSeq_.c_str()));
 
+        /**
+         * TODO: What's going on here??
+         *       Are we really sure that we want to assign a negative value to
+         *       an unsigned integer?
+         */
         insertPos[trueIndNum].pos = -999;
 
         int64_t nowInsertSjIndex = 0;
@@ -389,7 +398,7 @@ namespace RefactorProcessing {
         for (size_t i = 0; i < sjSeqLength * 2; ++i) {
             int32_t hash = 0;
             bool foundInvalid = false;
-            for (int j = 0;j < kMerSize_; ++j) {
+            for (unsigned int j = 0;j < kMerSize_; ++j) {
                 if (i+j >= sjSeqLength * 2){
                     foundInvalid = true;
                     if (j == 0) sjHashRecord[i] = {-1, 0};
@@ -438,19 +447,45 @@ namespace RefactorProcessing {
                 prevHashInsert = nowHashInsert;
             }
             ++nowShift;
-            if (length == kMerSize_) {
+            if (length == (int) kMerSize_) {
                 int64_t nowUpperRange = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE);
                 patternMerMap_.set(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE,nowUpperRange + 1);
             }
-            int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
-            if (originalLength < length) {
+            /**
+             * TODO: The casting here makes me worried. Are you sure you want
+             *       `patternMerMap_.get` to return signed valued?
+             *       If so, why cast it to 32 bits here?
+             */
+            // int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
+            int64_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
+            if (originalLength < (int64_t) length) {
                 patternMerMap_.set(nowHashInsert,patternMerMap_.INDEX_LENGTH,length);
             }
         }
 
         if (prevHashInsert != -1) {
-            for (size_t j = prevHashInsert + 1; j < kMerNum_; ++j) {
-                int64_t nowLeftSAIndex = patternMerMap_.get(j,patternMerMap_.INDEX_LEFT_SA_INDEX);
+            /**
+             * TODO: This comparison also looks unintended.
+             *       Comparing a 32 bit int with a 64 bit unsigned is fishy.
+             *       I will cast `kMerNum_` to signed value and abort if it overflowed.
+             */
+            uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+            if (kMerNum_ > max_int64) {
+                std::cerr << "FATAL: kMerNum_ overflow!";
+                std::abort();
+            }
+
+            for (int32_t j = prevHashInsert + 1; (int64_t) j < (int64_t) kMerNum_; ++j) {
+                /**
+                 * TODO: Since `patternMerMap_.get` expects unsigned values, are we completely sure that
+                 *       `j` cannot be negative?
+                 *       Again, I will put a runtime check for now and abort if it is not.
+                 */
+                if (j < 0) {
+                    std::cerr << "FATAL: index overflow!";
+                    std::abort();
+                }
+                int64_t nowLeftSAIndex = patternMerMap_.get(j, patternMerMap_.INDEX_LEFT_SA_INDEX);
                 patternMerMap_.set(j,patternMerMap_.INDEX_LEFT_SA_INDEX,nowLeftSAIndex + nowShift);
             }
             // rebuild secondary index for prevHashInsert

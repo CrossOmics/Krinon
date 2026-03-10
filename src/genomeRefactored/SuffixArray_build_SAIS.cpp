@@ -152,6 +152,8 @@ namespace RefactorProcessing{
     }
 
     bool constructPat1(size_t *pat, size_t *sa, size_t lmsCnt, size_t patLen, size_t saLen){
+        // `saLen` is unused ...
+        std::clog << saLen << std::endl;
         size_t rank = 0;
         size_t prevLen = 1;
         bool dup = false;
@@ -236,6 +238,8 @@ namespace RefactorProcessing{
 
     void inducedSort(size_t *pat, size_t *sa, size_t patLen, size_t saLen){
         bool lastType = true;
+        // `saLen` is unused ...
+        std::clog << saLen << std::endl;
         for (int64_t j = patLen - 2; j >= 0; --j) {
             if (patCharType(pat[j], pat[j + 1], lastType)) {
                 lastType = true;

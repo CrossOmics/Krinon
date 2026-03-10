@@ -42,14 +42,14 @@ namespace RefactorProcessing {
     private:
         // configs
 
-        int kMerSize_;
+        uint32_t kMerSize_;
         uint64_t kMerNum_;
         std::string additionalIndexType_; // Now only LCP and pre-calculated search results. Reserved for future expansion.
         int extendHashTableByte_; // Bytes of each hash's extend table
         int extendHashTableNum_; // Number of elements in each hash's extend table
 
         //todo add to Parameters
-        int maxAlignNum = 1000; // max alignments to return for one search
+        uint64_t maxAlignNum = 1000; // max alignments to return for one search
 
 
 

@@ -13,17 +13,6 @@ namespace RefactorProcessing{
         /*for (int i = 0; i<10;++i){
             std::cout << suffixArray_[i] << " ";
         }*/
-        /*SuffixArray debug;
-        debug.buildSAIS(seq);
-        std::cout << "valid length:" << length_ <<"\n";
-        for (int i = 0; i < seq.length();++i){
-            if (suffixArray_[i] != debug[i]){
-                std::cout << "bug at "<< i <<"\n";
-                std::cout << suffixArray_[i] << " " << debug[i] << "\n";
-                break;
-            }
-
-        }*/
         std::cout << "\n";
     }
 

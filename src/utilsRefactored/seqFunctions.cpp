@@ -1,3 +1,4 @@
+#include <cstdint>
 #include "defines.h"
 #include "seqFunctions.h"
 
@@ -6,7 +7,7 @@ namespace RefactorProcessing {
     // encode a k-mer into an integer hash, return -1 if the seq length is less than kMerSize, or -i-2 if the i-th character is invalid
     int64_t encodeKmer(const std::string_view &seq, unsigned int kMerSize) {
         // TODO: `kMerSize` should always be unsigned!
-        if (seq.length() < kMerSize) {
+        if (seq.length() < (size_t) kMerSize) {
             return -1;
         }
         int64_t hash = 0;

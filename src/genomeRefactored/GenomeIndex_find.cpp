@@ -139,7 +139,7 @@ namespace RefactorProcessing {
 
         int64_t hash = encodeKmer(seq.substr(0,kMerSize_),kMerSize_);
         int l = patternMerMap_.get(hash, patternMerMap_.INDEX_LENGTH);
-        if (l < kMerSize_ || seq.length() == (size_t) kMerSize_){
+        if (l < (int)kMerSize_ || seq.length() == (size_t) kMerSize_){
             int64_t leftHash = matchedHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = matchedHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
@@ -277,13 +277,17 @@ namespace RefactorProcessing {
                 size_t leftPos = mid;
                 size_t rightPos = mid;
                 // left range
-                size_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+                /**
+                 * Again, what is going on here?
+                 * We are comparing what we know is 8 bits with 64 bits?
+                 */
+                uint8_t leftCommonPrefix = longestCommonPrefix_[leftPos];
                 while (leftCommonPrefix >= midLength) {
                     --leftPos;
                     leftCommonPrefix = longestCommonPrefix_[leftPos];
                 }
                 // right range
-                size_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+                uint8_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
                 while (rightCommonPrefix >= midLength) {
                     ++rightPos;
                     rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
@@ -312,7 +316,7 @@ namespace RefactorProcessing {
         //left range
         if (lLength == longestLength) {
             leftPos = rangeLeft;
-            size_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+            uint8_t leftCommonPrefix = longestCommonPrefix_[leftPos];
             ++cnt;
             while (leftCommonPrefix >= longestLength) {
                 --leftPos;
@@ -332,7 +336,21 @@ namespace RefactorProcessing {
         //right range
         if (rLength == longestLength) {
             rightPos = rangeRight;
-            size_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+            /**
+             * TODO: What's happening here?
+             * The LCP is 8-bit unsigned, and we are comparing
+             * against a 64-bit unsigned?
+             */
+
+             /**
+              * LCP was originally designed (and, by definition) to be a 64-bit unsigned value,
+              * but for the actual data it is used with, the values compared against the LCP generally
+              * do not exceed 151. Therefore, to reduce the space occupied by the LCP, it was previously
+              * changed from 64-bit to 8-bit.
+              */
+
+
+            uint8_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
             ++cnt;
             while (rightCommonPrefix >= longestLength) {
                 ++rightPos;

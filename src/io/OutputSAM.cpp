@@ -5,6 +5,7 @@ namespace RefactorProcessing{
     void OutputSAM::setParam(const Parameters &P, int initialFileSize) {
         outputFileName_ = P.outPutDir + "outAligned.out.sam";
         sortByCoordinate_ = false;
+        std::cout << "Attempting to get mmap'ed file at " << outputFileName_ << std::endl;
         // memory-map the output file
         try {
             outputFile_.reset(new MemoryMappedFile(outputFileName_, (long long)initialFileSize));
@@ -13,6 +14,7 @@ namespace RefactorProcessing{
         } catch (const std::exception &e) {
             rna::ErrorRecord().reportError(std::string("Memory map failed: ") + e.what());
         }
+        std::cout << "mmap done" << std::endl;
     }
 
     void OutputSAM::outputSAM(char* samRecord, size_t size) {
