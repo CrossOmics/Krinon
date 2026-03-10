@@ -25,8 +25,8 @@ namespace RefactorProcessing {
 
     struct Chromosome {
         std::string name;
-        int64_t start;
-        int64_t length;
+        size_t start;
+        size_t length;
     };
 
     class Genome {
@@ -56,11 +56,11 @@ namespace RefactorProcessing {
 
         size_t sjdbSeqLength_;// length of sjdb sequence for one strand, that is, sjdb.sjdbLength*sjdb.sjdbNum
 
-        int64_t sjdbStart_;// start position of sjdb sequence in genome sequence
+        size_t sjdbStart_;// start position of sjdb sequence in genome sequence
 
         //additional genome sequence data such as sjdb
 
-        int64_t sjdbNum_;
+        size_t sjdbNum_;
         std::vector<sjDataBasePiece> sjDataBase_;
         std::vector<int64_t> sjDonorStart_;
         std::vector<int64_t> sjAcceptorStart_;

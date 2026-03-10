@@ -7,17 +7,17 @@ namespace RefactorProcessing {
     inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a) const {
 
 
-        if (results.size() >= maxAlignNum) {
+        if (results.size() >= (size_t) maxAlignNum) {
             rna::WarningRecord().reportWarning("Exceeding max alignments per read, some alignments are ignored");
             return false;
         }
 
         int posToInsert = -1;
-        int64_t readStart = a.readPos;
-        int64_t length = a.length;
+        size_t readStart = a.readPos;
+        size_t length = a.length;
 
         // find the position to insert
-        for (int i = 0; i < results.size(); ++i) {
+        for (size_t i = 0; i < results.size(); ++i) {
             if (results[i].readPos < readStart) continue;
             if (results[i].readPos == readStart) {
                 if (results[i].length < length) continue;
@@ -114,7 +114,7 @@ namespace RefactorProcessing {
 
     Align GenomeIndex::findMMP(const std::string_view& seq) const {
         Align result;
-        if (seq.length() < kMerSize_){
+        if ( seq.length() < (size_t) kMerSize_){
             //the last few bps of read
             int l = seq.length();
             int64_t hash = encodeKmer(seq,l);
@@ -139,7 +139,7 @@ namespace RefactorProcessing {
 
         int64_t hash = encodeKmer(seq.substr(0,kMerSize_),kMerSize_);
         int l = patternMerMap_.get(hash, patternMerMap_.INDEX_LENGTH);
-        if (l < kMerSize_ || seq.length() == kMerSize_){
+        if (l < kMerSize_ || seq.length() == (size_t) kMerSize_){
             int64_t leftHash = matchedHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = matchedHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
@@ -150,7 +150,7 @@ namespace RefactorProcessing {
             if (rightSAIndex - leftSAIndex + 1 > 10000){
                 return Align();
             } else {
-                int64_t nowRightSAIndex = rightSAIndex;
+                size_t nowRightSAIndex = rightSAIndex;
                 while (longestCommonPrefix_[nowRightSAIndex + 1] >= l) {
                     ++nowRightSAIndex;
                     if (nowRightSAIndex >= suffixArray_.length_) break;
@@ -173,7 +173,7 @@ namespace RefactorProcessing {
         size_t rBound = lBound + num;
 
         //no need to search in extend hash table
-        if (num <= extendHashTableNum_) return findMMP_GetRange(seq,lBound,rBound,l);
+        if (num <= (size_t) extendHashTableNum_) return findMMP_GetRange(seq,lBound,rBound,l);
         // start pos of current hash's table
         const int64_t extendIndexHashBase = hash * extendHashTableNum_;
         int64_t remainLength = seq.length() - kMerSize_;
@@ -277,13 +277,13 @@ namespace RefactorProcessing {
                 size_t leftPos = mid;
                 size_t rightPos = mid;
                 // left range
-                int64_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+                size_t leftCommonPrefix = longestCommonPrefix_[leftPos];
                 while (leftCommonPrefix >= midLength) {
                     --leftPos;
                     leftCommonPrefix = longestCommonPrefix_[leftPos];
                 }
                 // right range
-                int64_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+                size_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
                 while (rightCommonPrefix >= midLength) {
                     ++rightPos;
                     rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
@@ -312,7 +312,7 @@ namespace RefactorProcessing {
         //left range
         if (lLength == longestLength) {
             leftPos = rangeLeft;
-            int64_t leftCommonPrefix = longestCommonPrefix_[leftPos];
+            size_t leftCommonPrefix = longestCommonPrefix_[leftPos];
             ++cnt;
             while (leftCommonPrefix >= longestLength) {
                 --leftPos;
@@ -332,7 +332,7 @@ namespace RefactorProcessing {
         //right range
         if (rLength == longestLength) {
             rightPos = rangeRight;
-            int64_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
+            size_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
             ++cnt;
             while (rightCommonPrefix >= longestLength) {
                 ++rightPos;

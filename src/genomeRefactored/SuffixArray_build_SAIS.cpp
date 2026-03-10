@@ -119,7 +119,7 @@ namespace RefactorProcessing{
         size_t bucket = EMPTY;
         size_t numS = 0;
 
-        for (int64_t i = patLen - 1; i > 0; --i) {
+        for (size_t i = patLen - 1; i > 0; --i) {
             size_t v = pat[sa[i]];
             if (v != bucket) {
                 numS = 0;
@@ -245,7 +245,7 @@ namespace RefactorProcessing{
             }
         }
 
-        int64_t i = 0;
+        size_t i = 0;
         while (i < patLen) {
             if (sa[i] < EMPTY && sa[i] > 0) {
                 size_t j = sa[i] - 1;
@@ -414,7 +414,7 @@ namespace RefactorProcessing{
 
     void SuffixArray::buildSAIS(const std::string &seq) {
 
-        const int64_t n = seq.length();
+        const size_t n = seq.length();
 
 
         size_t patLen = n + 1;

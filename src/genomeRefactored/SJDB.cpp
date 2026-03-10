@@ -39,7 +39,7 @@ namespace RefactorProcessing {
         }
 
         if (chromosomeNameToIndex_.empty()) {
-            for (int i = 0; i < genome.chromosomes_.size(); ++i) {
+            for (size_t i = 0; i < genome.chromosomes_.size(); ++i) {
                 chromosomeNameToIndex_[genome.chromosomes_[i].name] = i;
             }
         }
@@ -101,7 +101,7 @@ namespace RefactorProcessing {
                 std::vector<std::string> exAttr; //trID, gID, gName, gBiotype
                 exAttr.resize(exAttrNames.size());
 
-                for (int ii = 0; ii < exAttrNames.size(); ii++) {
+                for (size_t ii = 0; ii < exAttrNames.size(); ii++) {
                     for (auto &attr1: exAttrNames[ii]) {//scan through possible names
                         size_t pos1 = nowLine.find(" " + attr1 + " "); //attribute name is separated by spaces
                         if (pos1 != std::string::npos)
@@ -198,7 +198,7 @@ namespace RefactorProcessing {
 
         std::vector<sjStride> sjLoci;
         sjLoci.reserve(exonNum);
-        size_t trID = exonLoci_[0].trID;
+        int64_t trID = exonLoci_[0].trID;
 
         for (size_t i = 1; i < exonNum; ++i) {
             if (trID == exonLoci_[i].trID) {
@@ -255,7 +255,7 @@ namespace RefactorProcessing {
 
 
     struct insertRecord {
-        size_t pos;
+        int64_t pos;
         size_t sjPos;
     };
 
@@ -286,10 +286,10 @@ namespace RefactorProcessing {
     void GenomeIndex::modify(SJDB &sjdb) {
         genome_.modifyGenome(sjdb);
         //change SA and index
-        int64_t sjSeqLength = sjdb.sjdbLength * genome_.sjdbNum_;
+        size_t sjSeqLength = sjdb.sjdbLength * genome_.sjdbNum_;
         genome_.sjdbSeqLength_ = sjSeqLength;
         //notice that there will be 2*SJDB_PADDING_LENGTH '#'s between the two strands
-        for (int i = 0; i < sjSeqLength; ++i) {
+        for (size_t i = 0; i < sjSeqLength; ++i) {
             sjdb.sjdbSeq_[2 * sjSeqLength - 1 - i] = complement(sjdb.sjdbSeq_[i]);
         }
         sjdb.sjdbSeq_ += std::string('#',SJDB_PADDING_LENGTH); //padding to avoid overflow
@@ -336,7 +336,7 @@ namespace RefactorProcessing {
         SuffixArray sa;
         sa.buildFromOtherInit(suffixArray_, suffixArray_.length_ + trueIndNum);
 
-        for (size_t i = 0; i < suffixArray_.length_; ++i) {
+        for (int64_t i = 0; i < (int64_t) suffixArray_.length_; ++i) {
             while (i == insertPos[nowInsertSjIndex].pos) {
                 size_t sjPos = insertPos[nowInsertSjIndex].sjPos;
 
@@ -370,7 +370,7 @@ namespace RefactorProcessing {
         for (size_t i = 0; i < genome_.sequence_.length(); ++i) rk.setValue(i, 0);
         for (size_t i = 0; i < suffixArray_.length_; ++i) rk.setValue(suffixArray_[i], i);
         size_t k = 0;
-        for (int64_t i = 0; i < genome_.sequence_.length(); ++i) {
+        for (size_t i = 0; i < genome_.sequence_.length(); ++i) {
             size_t j = rk[i];
             if (j == 0) {
                 k = 0;
@@ -386,7 +386,7 @@ namespace RefactorProcessing {
         std::vector<sjHash> sjHashRecord;
         sjHashRecord.resize(sjSeqLength * 2, {-1, 0});
 
-        for (int i = 0; i < sjSeqLength * 2; ++i) {
+        for (size_t i = 0; i < sjSeqLength * 2; ++i) {
             int32_t hash = 0;
             bool foundInvalid = false;
             for (int j = 0;j < kMerSize_; ++j) {
@@ -449,7 +449,7 @@ namespace RefactorProcessing {
         }
 
         if (prevHashInsert != -1) {
-            for (int32_t j = prevHashInsert + 1; j < kMerNum_; ++j) {
+            for (size_t j = prevHashInsert + 1; j < kMerNum_; ++j) {
                 int64_t nowLeftSAIndex = patternMerMap_.get(j,patternMerMap_.INDEX_LEFT_SA_INDEX);
                 patternMerMap_.set(j,patternMerMap_.INDEX_LEFT_SA_INDEX,nowLeftSAIndex + nowShift);
             }

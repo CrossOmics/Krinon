@@ -161,7 +161,7 @@ namespace RefactorProcessing {
         WindowAlign wa;
         WindowAlign wa2;
         wa2.direction = 2;// 2 means dummy
-        int64_t loc = genomeIndex_.suffixArray_[ind];
+        size_t loc = genomeIndex_.suffixArray_[ind];
         if (genomeIndex_.genome_.sjdbNum_ >0 && loc > genomeIndex_.genome_.sjdbStart_){
             // maybe a cross-sjdb alignment
             loc -= genomeIndex_.genome_.sjdbStart_;
@@ -171,8 +171,8 @@ namespace RefactorProcessing {
                 loc = 2 * genomeIndex_.genome_.sjdbSeqLength_ - loc - a.length;
             }
 
-            int64_t startInSj = loc % sjdbLength_;
-            if (startInSj < sjdbOverhang_ && startInSj + a.length > sjdbOverhang_) {
+            size_t startInSj = loc % sjdbLength_;
+            if (startInSj < (size_t)sjdbOverhang_ && startInSj + a.length > (size_t) sjdbOverhang_) {
                 // crossing sjdb
                 int sjIndex = loc / sjdbLength_;
                 int64_t donorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex] + startInSj;
@@ -337,7 +337,7 @@ namespace RefactorProcessing {
         }
 
         // flank existing windows
-        for (int i = 0; i < windows_.size(); ++i) {
+        for (size_t i = 0; i < windows_.size(); ++i) {
             auto &win = windows_[i];
             if (win.startBin > win.endBin) continue;
             // flank the window
@@ -359,7 +359,7 @@ namespace RefactorProcessing {
             win.endBin = rightBin;
             // reserve space for alignments
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
-            memset(win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
+            memset((void *)win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;
             win.numAnchors = 0;
             win.numFirstFragAligns = 0;

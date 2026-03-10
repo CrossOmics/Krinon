@@ -7,7 +7,7 @@ namespace RefactorProcessing {
         if (readStart > 0) {
             cigar += std::to_string(readStart) + "S"; // soft clipping at the start
         }
-        for (int64_t i = 0; i < exons.size(); ++i) {
+        for (size_t i = 0; i < exons.size(); ++i) {
             cigar += std::to_string(exons[i].length) + "M"; // exon
             if (i < exons.size() - 1) {
                 if (sj[i].type >= 0) {
@@ -52,7 +52,7 @@ namespace RefactorProcessing {
                 Flag2 = 83; // read1, mapped, forward, mate reverse
             }
             std::string cigar1, cigar2;
-            int64_t iExon = 0;
+            size_t iExon = 0;
             int64_t mate2StartExon = 0;
             for (iExon = 0; iExon < exons.size(); ++iExon) {
                 cigar1 += std::to_string(exons[iExon].length) + "M"; // exon

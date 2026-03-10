@@ -385,7 +385,7 @@ namespace RefactorProcessing {
 
     void SuffixArray::buildCAPS(const std::string &seq) {
         if (threadNum > 1) omp_set_num_threads(threadNum);
-        const int64_t n = seq.length();
+        const size_t n = seq.length();
 
         size_t patLen = n + 1;
         char *p = new char[patLen];
@@ -396,7 +396,7 @@ namespace RefactorProcessing {
         }
         p[n] = 0;
 
-        size_t saLen = std::max(n, (int64_t) 256);
+        size_t saLen = std::max(n, (size_t) 256);
         auto* rawSA = new size_t[saLen + reservedLength];
         memset(rawSA,0, (saLen + reservedLength) * sizeof(size_t));
         size_t* sa = rawSA + reservedLength;

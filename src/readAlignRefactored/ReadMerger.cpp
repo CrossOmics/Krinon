@@ -10,12 +10,12 @@ namespace RefactorProcessing {
     int calcBestOverlap(const std::string& seq1, const std::string& seq2, int maxMismatch,double maxMismatchRate) {
         int bestOverlap = -1;
         int bestMatches = -1;
-        for (int i = 0; i < seq1.length(); ++i){
+        for (size_t i = 0; i < seq1.length(); ++i){
             int mismatch = 0;
             int overlapLength = std::min(seq1.length() - i, seq2.length());
             int mismatchThreshold = std::min(maxMismatch, int(overlapLength * maxMismatchRate));
 
-            for (int j = 0; j < seq2.length(); ++j){
+            for (size_t j = 0; j < seq2.length(); ++j){
                 if (i + j >= seq1.length()) break;
                 if (seq1[i + j] != seq2[j]) {
                     ++mismatch;

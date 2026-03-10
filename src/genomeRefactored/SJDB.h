@@ -117,8 +117,8 @@ namespace RefactorProcessing {
 
         std::ofstream logFile_;
 
-        int sjdbOverhang{100};
-        int sjdbLength{220};
+        size_t sjdbOverhang{100};
+        size_t sjdbLength{220};
         int limitSjdbInsertN{1000000};
 
 

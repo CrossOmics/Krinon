@@ -4,7 +4,7 @@
 #include <string>
 #include <fstream>
 namespace RefactorProcessing {
-    int64_t encodeKmer(const std::string_view &seq, int kMerSize);
+    int64_t encodeKmer(const std::string_view &seq, unsigned int kMerSize);
 
     inline int32_t charToIndex(char c){
 
@@ -32,7 +32,7 @@ namespace RefactorProcessing {
         size_t l1 = seq1.length();
         size_t l2 = seq2.length();
         size_t l = std::min(l1, l2);
-        for (int i = 0; i < l; ++i) {
+        for (size_t i = 0; i < l; ++i) {
             if(seq1[i] == seq2[i]) continue;
             if (seq1[i] == 'N' || seq1[i] == '#') return false;
             if (seq2[i] == 'N' || seq2[i] == '#') return true;

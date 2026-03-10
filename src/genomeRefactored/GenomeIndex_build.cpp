@@ -56,16 +56,16 @@ namespace RefactorProcessing {
         PackedArray rk;
         size_t sequenceLength = genome_.sequence_.length();
         rk.initialize(sequenceLength, suffixArray_.wordBits_);
-        for (int64_t i = 0; i < sequenceLength; ++i) {
+        for (size_t i = 0; i < sequenceLength; ++i) {
             rk.setValue(i, 0);
         }
-        for (int64_t i = 0; i < suffixArray_.length_; ++i) {
+        for (size_t i = 0; i < suffixArray_.length_; ++i) {
             rk.setValue(suffixArray_[i], i);
         }
 
         //todo optimize: multi-thread
         size_t k = 0;
-        for (int64_t i = 0; i < sequenceLength; ++i) {
+        for (size_t i = 0; i < sequenceLength; ++i) {
             size_t j = rk[i];
             if (j == 0) {
                 k = 0;
@@ -109,7 +109,7 @@ namespace RefactorProcessing {
         nowWindowHash.resize(kMerSize_ + 1, 0); // Also, 0 is empty
         int nowAvailableLength = 0;
         const std::string &seq = genome_.sequence_;
-        int64_t genomeLength = genome_.sequence_.length();
+        size_t genomeLength = genome_.sequence_.length();
         for (size_t i = 0; i < genomeLength; ++i) {
             charToIndex(seq[i]) >= 0 ? ++nowAvailableLength : nowAvailableLength = 0;
             if (nowAvailableLength == 0) continue;
@@ -139,7 +139,7 @@ namespace RefactorProcessing {
         for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             int32_t hash = i;
             int32_t length = kMerSize_;
-            while (!getFlag(hash, length,appearance_flag) && length > 0) {
+            while (length > 0 && !getFlag(hash, length,appearance_flag)) {
                 --length;
                 hash >>= 2; // remove the last two bits
             }
@@ -148,13 +148,14 @@ namespace RefactorProcessing {
 
         int64_t prevHash = -1;
         //initialize
-        for (int64_t i = 0; i < kMerNum_ - 1; ++i) {
+        for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             patternMerMap_.set(i, patternMerMap_.INDEX_LEFT_SA_INDEX, patternMerMap_.EMPTY_SA_INDEX);
             patternMerMap_.set(i, patternMerMap_.INDEX_UPPER_RANGE, patternMerMap_.EMPTY_UPPER_RANGE);
         }
 
-        for (int64_t i = 0; i < suffixArray_.length_; ++i){
+        for (size_t i = 0; i < suffixArray_.length_; ++i){
             int64_t hash = encodeKmer(seq.substr(suffixArray_[i],kMerSize_),kMerSize_);
+            if (hash < 0) hash = -1;
 
             if (hash > prevHash){
                 if (prevHash != -1 && patternMerMap_.get(prevHash,patternMerMap_.INDEX_UPPER_RANGE) == patternMerMap_.EMPTY_UPPER_RANGE)
@@ -174,7 +175,7 @@ namespace RefactorProcessing {
             patternMerMap_.set(prevHash,patternMerMap_.INDEX_UPPER_RANGE,(suffixArray_.length_ - 1 - patternMerMap_.get(prevHash, patternMerMap_.INDEX_LEFT_SA_INDEX)));
 
         int64_t prevRightBound = 0;
-        for (int64_t i = 0; i < kMerNum_ - 1; ++i) {
+        for (size_t i = 0; i < kMerNum_ - 1; ++i) {
             if (patternMerMap_.get(i, patternMerMap_.INDEX_LENGTH) < kMerSize_) {
                 patternMerMap_.set(i, patternMerMap_.INDEX_LEFT_SA_INDEX, prevRightBound + 1);
             } else {

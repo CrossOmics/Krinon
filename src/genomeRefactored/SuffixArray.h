@@ -23,7 +23,7 @@ namespace RefactorProcessing {
         //data
         PackedArray suffixArray_; // Suffix Array
 
-        int64_t length_;
+        size_t length_;
 
         int64_t wordBits_;
 
@@ -41,7 +41,7 @@ namespace RefactorProcessing {
 
         PackedArray& getSuffixArray();
 
-        uint64_t operator[](int index) const { return suffixArray_.getValue(index); }
+        uint64_t operator[](int64_t index) const { return suffixArray_.getValue(index); }
 
         // different building methods
         void buildTraditional(const std::string &seq);
