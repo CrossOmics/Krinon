@@ -57,42 +57,42 @@ namespace RefactorProcessing {
         // allocate memory for data structures based on parameters
         alignments_ = a;
         windows_.reserve(maxWindows_);
-        //std::cout << "0" << std::endl;
+        std::cout << "0" << std::endl;
         windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
-        //std::cout << "1" << std::endl;
+        std::cout << "1" << std::endl;
         transcripts_.resize(transcriptStoredMax_);
-        //std::cout << "2" << std::endl;
+        std::cout << "2" << std::endl;
         size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_ - 1)) + 2;
-        //std::cout << winBinNum << std::endl;
+        std::cout << winBinNum << std::endl;
         winBinMap_[0].resize(winBinNum, -1);
-        //std::cout << "3" << std::endl;
+        std::cout << "3" << std::endl;
         winBinMap_[1].resize(winBinNum, -1);
-        //std::cout << "4" << std::endl;
+        std::cout << "4" << std::endl;
         size_t maxStitchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
         stitchRecords_.resize(maxStitchRecordNum);
-        //std::cout << "5" << std::endl;
+        std::cout << "5" << std::endl;
         extendRecords_[0].resize(maxSeedPerWindows_);
-        //std::cout << "6" << std::endl;
+        std::cout << "6" << std::endl;
         extendRecords_[1].resize(maxSeedPerWindows_);
-        //std::cout << "7" << std::endl;
+        std::cout << "7" << std::endl;
         allSingleExtensionRecord_.resize(maxSeedPerWindows_ * 2 * (1 + maxMismatch_));
-        //std::cout << "8" << std::endl;
+        std::cout << "8" << std::endl;
         for (int i = 0; i < maxSeedPerWindows_; ++i) {
             extendRecords_[0][i].maxExtensionLengthWithMismatch =
                     allSingleExtensionRecord_.data() + (i * (1 + maxMismatch_));
             extendRecords_[1][i].maxExtensionLengthWithMismatch =
                     allSingleExtensionRecord_.data() + ((i + maxSeedPerWindows_) * (1 + maxMismatch_));
         }
-        //std::cout << "9" << std::endl;
+        std::cout << "9" << std::endl;
         size_t maxRawTranscriptNum = maxSeedPerWindows_ * maxSeedPerWindows_;
         if (!isPaired_) rawTranscripts_.resize(maxRawTranscriptNum);
         else rawTranscriptsPaired_.resize(maxRawTranscriptNum);
         transcripts_.resize(100);
-        //std::cout << "10" << std::endl;
+        std::cout << "10" << std::endl;
         if (isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
 
         resultTranscriptBuffer_ = new char[transcriptStoredMax_ * 5000];
-        //std::cout << "11" << std::endl;
+        std::cout << "11" << std::endl;
         resultTranscriptLength_ = 0;
     }
 
@@ -176,6 +176,10 @@ namespace RefactorProcessing {
          *       overflow.
          *       I will put a runtime check for that and abort if it fails.
          */
+         /**
+          *  loc is non-negative
+          *  Also, sjdbSeqLength_ is at most 2 * sjdbNum_ * sjdbLength_, which is very unlikely to overflow 64 bits
+          */
         uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
         if (genomeIndex_.genome_.sjdbSeqLength_ > max_int64) {
             std::cerr << "FATAL: `sjdbSeqLength_` overflow!";
@@ -260,6 +264,7 @@ namespace RefactorProcessing {
     }
 
     void Stitching::createWindowFromAnchor(const RefactorProcessing::WindowAlign &anchor) {
+        if (windows_.size() >= (size_t) maxWindows_) return;
         auto location = anchor.genomeStart;
         auto chrId = genomeIndex_.genome_.getPosChrIndex(location);
         Chromosome chr = genomeIndex_.genome_.chromosomes_[chrId];
@@ -383,6 +388,9 @@ namespace RefactorProcessing {
             win.endBin = rightBin;
             // reserve space for alignments
             // TODO: Are you sure this is correct? these pointer arithmetics look risky ...
+            /**
+             * fixed, I forgot to limit the number of windows created in createWindowFromAnchor
+             */
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
             memset((void*) win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;

@@ -337,6 +337,10 @@ namespace RefactorProcessing {
          *       Are we really sure that we want to assign a negative value to
          *       an unsigned integer?
          */
+         /**
+          * fixed by changing the type of pos to int64_t
+          * mark the end of valid insert positions with -999
+          */
         insertPos[trueIndNum].pos = -999;
 
         int64_t nowInsertSjIndex = 0;
@@ -456,6 +460,10 @@ namespace RefactorProcessing {
              *       `patternMerMap_.get` to return signed valued?
              *       If so, why cast it to 32 bits here?
              */
+             /**
+              * `length` is at most `kMerSize_`. Therefore it only needs 4 bits to store,
+              *  so it should be safe to cast it to 32 bits.
+              */
             // int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
             int64_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
             if (originalLength < (int64_t) length) {
@@ -469,6 +477,10 @@ namespace RefactorProcessing {
              *       Comparing a 32 bit int with a 64 bit unsigned is fishy.
              *       I will cast `kMerNum_` to signed value and abort if it overflowed.
              */
+             /**
+              * kMerNum_ is at most 4^kMerSize_, which is at most 2^30
+              * I will change the type to 32 bits to avoid confusion
+              */
             uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
             if (kMerNum_ > max_int64) {
                 std::cerr << "FATAL: kMerNum_ overflow!";
@@ -480,6 +492,10 @@ namespace RefactorProcessing {
                  * TODO: Since `patternMerMap_.get` expects unsigned values, are we completely sure that
                  *       `j` cannot be negative?
                  *       Again, I will put a runtime check for now and abort if it is not.
+                 */
+
+                /**
+                 * yes, j should never be negative
                  */
                 if (j < 0) {
                     std::cerr << "FATAL: index overflow!";
