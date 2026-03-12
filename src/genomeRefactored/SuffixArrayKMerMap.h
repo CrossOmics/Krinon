@@ -24,8 +24,12 @@ namespace RefactorProcessing {
          *       Them being `uint64_t`, when they are always compared to `int64_t`
          *       is fishy.
          */
-        // uint64_t EMPTY_UPPER_RANGE;
-        // uint64_t EMPTY_SA_INDEX;
+
+        /**
+         * they are used to indicate empty values: 2 << BITS - 1
+         * considering the size of reference genome, 36 bits are enough
+         */
+
         int64_t EMPTY_UPPER_RANGE;
         int64_t EMPTY_SA_INDEX;
 

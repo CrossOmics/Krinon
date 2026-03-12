@@ -7,14 +7,14 @@ namespace RefactorProcessing {
     inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a) const {
 
 
-        if (results.size() >= maxAlignNum) {
+        if (results.size() >= (size_t) maxAlignNum) {
             rna::WarningRecord().reportWarning("Exceeding max alignments per read, some alignments are ignored");
             return false;
         }
 
         int posToInsert = -1;
-        int64_t readStart = a.readPos;
-        int64_t length = a.length;
+        size_t readStart = a.readPos;
+        size_t length = a.length;
 
         // find the position to insert
         for (size_t i = 0; i < results.size(); ++i) {
@@ -114,18 +114,18 @@ namespace RefactorProcessing {
 
     Align GenomeIndex::findMMP(const std::string_view& seq) const {
         Align result;
-        if (seq.length() < kMerSize_){
+        if ( seq.length() < (size_t) kMerSize_){
             //the last few bps of read
             int l = seq.length();
             int64_t hash = encodeKmer(seq,l);
             if (hash == -1) return Align();
             int64_t leftHash = extendHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = extendHashRight(hash, kMerSize_ - l);
-            int64_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
+            size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
 
             int64_t rightUpperRange = patternMerMap_.get(rightHash, patternMerMap_.INDEX_UPPER_RANGE);
             if (rightUpperRange == patternMerMap_.EMPTY_UPPER_RANGE) rightUpperRange = -1;
-            int64_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
+            size_t rightSAIndex = patternMerMap_.get(rightHash, patternMerMap_.INDEX_LEFT_SA_INDEX) +
                                  rightUpperRange;
             result.length = l;
             result.leftSAIndex = leftSAIndex;
@@ -139,7 +139,7 @@ namespace RefactorProcessing {
 
         int64_t hash = encodeKmer(seq.substr(0,kMerSize_),kMerSize_);
         int l = patternMerMap_.get(hash, patternMerMap_.INDEX_LENGTH);
-        if (l < (int) kMerSize_ || seq.length() == kMerSize_){
+        if (l < (int)kMerSize_ || seq.length() == (size_t) kMerSize_){
             int64_t leftHash = matchedHashLeft(hash, kMerSize_ - l);
             int64_t rightHash = matchedHashRight(hash, kMerSize_ - l);
             size_t leftSAIndex = patternMerMap_.get(leftHash, patternMerMap_.INDEX_LEFT_SA_INDEX);
@@ -166,14 +166,14 @@ namespace RefactorProcessing {
         }
 
         // common situation
-        int64_t lBound = patternMerMap_.get(hash,patternMerMap_.INDEX_LEFT_SA_INDEX);
+        size_t lBound = patternMerMap_.get(hash,patternMerMap_.INDEX_LEFT_SA_INDEX);
         int64_t upperRange = patternMerMap_.get(hash, patternMerMap_.INDEX_UPPER_RANGE);
         if (upperRange == patternMerMap_.EMPTY_UPPER_RANGE) upperRange = -1;
-        int64_t num = upperRange + 1;
-        int64_t rBound = lBound + num;
+        size_t num = upperRange + 1;
+        size_t rBound = lBound + num;
 
         //no need to search in extend hash table
-        if (num <= extendHashTableNum_) return findMMP_GetRange(seq,lBound,rBound,l);
+        if (num <= (size_t) extendHashTableNum_) return findMMP_GetRange(seq,lBound,rBound,l);
         // start pos of current hash's table
         const int64_t extendIndexHashBase = hash * extendHashTableNum_;
         int64_t remainLength = seq.length() - kMerSize_;
@@ -337,10 +337,19 @@ namespace RefactorProcessing {
         if (rLength == longestLength) {
             rightPos = rangeRight;
             /**
-             * TODO: What's happening here? 
-             * The LCP is 8-bit unsigned, and we are comparing 
+             * TODO: What's happening here?
+             * The LCP is 8-bit unsigned, and we are comparing
              * against a 64-bit unsigned?
              */
+
+             /**
+              * LCP was originally designed (and, by definition) to be a 64-bit unsigned value,
+              * but for the actual data it is used with, the values compared against the LCP generally
+              * do not exceed 151. Therefore, to reduce the space occupied by the LCP, it was previously
+              * changed from 64-bit to 8-bit.
+              */
+
+
             uint8_t rightCommonPrefix = longestCommonPrefix_[rightPos + 1];
             ++cnt;
             while (rightCommonPrefix >= longestLength) {

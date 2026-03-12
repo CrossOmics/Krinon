@@ -5,6 +5,8 @@
 #include <cstring>
 #include <cstdint>
 #include "../utilsRefactored/seqFunctions.h"
+#include <immintrin.h>
+
 
 namespace RefactorProcessing {
 

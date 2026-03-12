@@ -43,7 +43,7 @@ namespace RefactorProcessing {
             if (line.empty()) continue;
             if (line[0] == '>') {
                 if (!currentChr.empty()) {
-                    size_t currentPos = static_cast<size_t>(currentSeq.tellp());
+                    size_t currentPos = static_cast<int64_t>(currentSeq.tellp());
                     size_t chrLen = currentPos - currentStart;
 
                     size_t paddingLen = ((chrLen + (1 << binSizeLog_)) & ~((1 << binSizeLog_) - 1)) - chrLen;

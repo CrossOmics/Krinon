@@ -14,10 +14,10 @@
 namespace RefactorProcessing {
     // seed search results
     struct Align {
-        int64_t readPos;
-        int64_t leftSAIndex;
-        int64_t rightSAIndex;
-        int64_t length;
+        size_t readPos;
+        size_t leftSAIndex;
+        size_t rightSAIndex;
+        size_t length;
         int64_t rep;
         int direction; // 0 for forward, 1 for reverse
         int iFragment; // 0 or 1, for paired-end reads

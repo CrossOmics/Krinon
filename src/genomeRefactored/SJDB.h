@@ -96,7 +96,7 @@ namespace RefactorProcessing {
 
     struct sjHash{
         int32_t hash;
-        uint32_t length;
+        unsigned int length;
         bool operator<(const sjHash &b) const {
             if (hash != b.hash) return hash < b.hash;
             return length > b.length; // AATT# < AAT##
@@ -117,8 +117,8 @@ namespace RefactorProcessing {
 
         std::ofstream logFile_;
 
-        int sjdbOverhang{100};
-        int sjdbLength{220};
+        size_t sjdbOverhang{100};
+        size_t sjdbLength{220};
         int limitSjdbInsertN{1000000};
 
 

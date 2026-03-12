@@ -35,17 +35,18 @@ namespace RefactorProcessing {
         ~SuffixArray(){};
         void build(const std::string &seq);
 
-        void buildFromOtherInit(const SuffixArray &other,int newLength);
+        void buildFromOtherInit(const SuffixArray &other,int64_t newLength);
 
         void setParam(const Parameters &P);
 
         PackedArray& getSuffixArray();
 
-        uint64_t operator[](int index) const { return suffixArray_.getValue(index); }
+        uint64_t operator[](int64_t index) const { return suffixArray_.getValue(index); }
 
         // different building methods
         void buildTraditional(const std::string &seq);
         void buildSAIS(const std::string &seq);
+        void buildCAPS(const std::string &seq);
 
         int writeToFile(const std::string &fileName) const;
 

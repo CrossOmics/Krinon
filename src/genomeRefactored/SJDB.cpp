@@ -198,10 +198,10 @@ namespace RefactorProcessing {
 
         std::vector<sjStride> sjLoci;
         sjLoci.reserve(exonNum);
-        size_t trID = exonLoci_[0].trID;
+        int64_t trID = exonLoci_[0].trID;
 
         for (size_t i = 1; i < exonNum; ++i) {
-            if (trID == (size_t) exonLoci_[i].trID) {
+            if (trID == exonLoci_[i].trID) {
                 size_t chr = genome.getPosChrIndex(exonLoci_[i].start);
                 if (exonLoci_[i].start <= exonLoci_[i - 1].end + 1) {
                     //touching or overlapping exons
@@ -255,7 +255,7 @@ namespace RefactorProcessing {
 
 
     struct insertRecord {
-        size_t pos;
+        int64_t pos;
         size_t sjPos;
     };
 
@@ -286,10 +286,10 @@ namespace RefactorProcessing {
     void GenomeIndex::modify(SJDB &sjdb) {
         genome_.modifyGenome(sjdb);
         //change SA and index
-        int64_t sjSeqLength = sjdb.sjdbLength * genome_.sjdbNum_;
+        size_t sjSeqLength = sjdb.sjdbLength * genome_.sjdbNum_;
         genome_.sjdbSeqLength_ = sjSeqLength;
         //notice that there will be 2*SJDB_PADDING_LENGTH '#'s between the two strands
-        for (int i = 0; i < sjSeqLength; ++i) {
+        for (size_t i = 0; i < sjSeqLength; ++i) {
             sjdb.sjdbSeq_[2 * sjSeqLength - 1 - i] = complement(sjdb.sjdbSeq_[i]);
         }
         sjdb.sjdbSeq_ += std::string('#',SJDB_PADDING_LENGTH); //padding to avoid overflow
@@ -303,8 +303,8 @@ namespace RefactorProcessing {
         std::string_view sv(sjdb.sjdbSeq_);
         omp_set_num_threads(8);
 #pragma omp parallel for
-        for (size_t i = 0; i < (size_t) (2 * genome_.sjdbNum_); ++i) {
-            for (size_t sjStart = 0; sjStart < (size_t) sjdb.sjdbLength; ++sjStart) {
+        for (size_t i = 0; i < 2 * genome_.sjdbNum_; ++i) {
+            for (size_t sjStart = 0; sjStart < sjdb.sjdbLength; ++sjStart) {
                 size_t ind = i * sjdb.sjdbLength + sjStart;
                 if (sv[i * sjdb.sjdbLength + sjStart] == '#' ||
                     sv[i * sjdb.sjdbLength + sjStart] == 'N') {
@@ -319,12 +319,12 @@ namespace RefactorProcessing {
 
         }
         int trueIndNum = 0;
-        for (size_t i = 0; i < (size_t) (2 * sjSeqLength); ++i) {
+        for (size_t i = 0; i < 2 * sjSeqLength; ++i) {
             /**
              * TODO: Again, comparison between signed and unsigned ...
              *       This one in particular looks unintended ...
              */
-            if (insertPos[i].pos != (size_t) -1){
+            if (insertPos[i].pos != -1){
                 insertPos[trueIndNum] = insertPos[i];
                 trueIndNum++;
             }
@@ -337,6 +337,10 @@ namespace RefactorProcessing {
          *       Are we really sure that we want to assign a negative value to
          *       an unsigned integer?
          */
+         /**
+          * fixed by changing the type of pos to int64_t
+          * mark the end of valid insert positions with -999
+          */
         insertPos[trueIndNum].pos = -999;
 
         int64_t nowInsertSjIndex = 0;
@@ -345,7 +349,7 @@ namespace RefactorProcessing {
         SuffixArray sa;
         sa.buildFromOtherInit(suffixArray_, suffixArray_.length_ + trueIndNum);
 
-        for (size_t i = 0; i < suffixArray_.length_; ++i) {
+        for (int64_t i = 0; i < (int64_t) suffixArray_.length_; ++i) {
             while (i == insertPos[nowInsertSjIndex].pos) {
                 size_t sjPos = insertPos[nowInsertSjIndex].sjPos;
 
@@ -395,16 +399,16 @@ namespace RefactorProcessing {
         std::vector<sjHash> sjHashRecord;
         sjHashRecord.resize(sjSeqLength * 2, {-1, 0});
 
-        for (size_t i = 0; i < (size_t) (sjSeqLength * 2); ++i) {
+        for (size_t i = 0; i < sjSeqLength * 2; ++i) {
             int32_t hash = 0;
             bool foundInvalid = false;
-            for (size_t j = 0; j < kMerSize_; ++j) {
-                if (i+j >= (size_t) (sjSeqLength * 2)){
+            for (unsigned int j = 0;j < kMerSize_; ++j) {
+                if (i+j >= sjSeqLength * 2){
                     foundInvalid = true;
                     if (j == 0) sjHashRecord[i] = {-1, 0};
                     else {
                         hash = ((hash + 1) << (2 * (kMerSize_ - j))) - 1;
-                        sjHashRecord[i] = {hash, (uint32_t) j};
+                        sjHashRecord[i] = {hash,  j};
                     }
                     break;
                 }
@@ -414,7 +418,7 @@ namespace RefactorProcessing {
                     if (j == 0) sjHashRecord[i] = {-1, 0};
                     else {
                         hash = ((hash + 1) << (2 * (kMerSize_ - j))) - 1;
-                        sjHashRecord[i] = {hash,  (uint32_t) j};
+                        sjHashRecord[i] = {hash,  j};
                     }
                     break;
                 }
@@ -429,10 +433,10 @@ namespace RefactorProcessing {
         int32_t prevHashInsert = -1;
         int32_t nowHashInsert = 0;
 
-        for (size_t i = 0; i < (size_t) (sjSeqLength * 2); ++i) {
+        for (size_t i = 0; i < sjSeqLength * 2; ++i) {
             if (sjHashRecord[i].hash == -1) continue;
             nowHashInsert = sjHashRecord[i].hash;
-            uint32_t length = sjHashRecord[i].length;
+            int32_t length = sjHashRecord[i].length;
             if (length == 0) continue; // should not happen
             if (nowHashInsert != prevHashInsert) {
                 if (prevHashInsert != -1) {
@@ -447,15 +451,19 @@ namespace RefactorProcessing {
                 prevHashInsert = nowHashInsert;
             }
             ++nowShift;
-            if (length == kMerSize_) {
+            if (length == (int) kMerSize_) {
                 int64_t nowUpperRange = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE);
                 patternMerMap_.set(nowHashInsert,patternMerMap_.INDEX_UPPER_RANGE,nowUpperRange + 1);
             }
             /**
-             * TODO: The casting here makes me worried. Are you sure you want 
+             * TODO: The casting here makes me worried. Are you sure you want
              *       `patternMerMap_.get` to return signed valued?
              *       If so, why cast it to 32 bits here?
              */
+             /**
+              * `length` is at most `kMerSize_`. Therefore it only needs 4 bits to store,
+              *  so it should be safe to cast it to 32 bits.
+              */
             // int32_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
             int64_t originalLength = patternMerMap_.get(nowHashInsert,patternMerMap_.INDEX_LENGTH);
             if (originalLength < (int64_t) length) {
@@ -469,6 +477,10 @@ namespace RefactorProcessing {
              *       Comparing a 32 bit int with a 64 bit unsigned is fishy.
              *       I will cast `kMerNum_` to signed value and abort if it overflowed.
              */
+             /**
+              * kMerNum_ is at most 4^kMerSize_, which is at most 2^30
+              * I will change the type to 32 bits to avoid confusion
+              */
             uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
             if (kMerNum_ > max_int64) {
                 std::cerr << "FATAL: kMerNum_ overflow!";
@@ -480,6 +492,10 @@ namespace RefactorProcessing {
                  * TODO: Since `patternMerMap_.get` expects unsigned values, are we completely sure that
                  *       `j` cannot be negative?
                  *       Again, I will put a runtime check for now and abort if it is not.
+                 */
+
+                /**
+                 * yes, j should never be negative
                  */
                 if (j < 0) {
                     std::cerr << "FATAL: index overflow!";
@@ -693,7 +709,7 @@ namespace RefactorProcessing {
         sjAcceptorStart_.reserve(sjdbNum_);
 
         size_t sjGStart = 0;
-        for (int64_t i = 0; i < sjdbNum_; ++i) {
+        for (size_t i = 0; i < sjdbNum_; ++i) {
             sjDonorStart_[i] = sjDataBase_[i].start - sjdb.sjdbOverhang;
             sjAcceptorStart_[i] = sjDataBase_[i].end + 1;
 

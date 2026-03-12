@@ -123,8 +123,6 @@ namespace rna {
             logOut << "\n";
 
             out.write(reinterpret_cast<const char *>(data_), dataLength_ * sizeof(uint64_t));
-
-            // TODO: Check this return value!
             return 0;
         }
         int loadFromFile(std::istream &in, std::ifstream &logIn) {
@@ -149,8 +147,6 @@ namespace rna {
             data_ = new uint64_t[dataLength_];
 
             in.read(reinterpret_cast<char *>(data_), dataLength_ * sizeof(uint64_t));
-
-            // TODO: Check this return value!
             return 0;
         }
     };

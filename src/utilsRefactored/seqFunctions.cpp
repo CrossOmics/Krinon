@@ -5,13 +5,12 @@
 namespace RefactorProcessing {
 
     // encode a k-mer into an integer hash, return -1 if the seq length is less than kMerSize, or -i-2 if the i-th character is invalid
-    int64_t encodeKmer(const std::string_view &seq, int kMerSize) {
-        // TODO: `kMerSize` should always be unsigned!
-        if (seq.length() < (size_t) kMerSize) {
+    int64_t encodeKmer(const std::string_view &seq, unsigned int kMerSize) {
+        if (seq.length() < kMerSize) {
             return -1;
         }
         int64_t hash = 0;
-        for (int i = 0; i < kMerSize; ++i) {
+        for (int i = 0; i < (int) kMerSize; ++i) {
             int32_t idx = charToIndex(seq[i]);
             if (idx < 0) return -i - 2;
             hash = (hash << 2) | idx;
@@ -22,18 +21,18 @@ namespace RefactorProcessing {
 
 
     bool writeString(std::ofstream &ofs, const std::string &s) {
-        uint32_t n = static_cast<uint32_t>(s.size());
+        uint64_t n = s.size();
         ofs.write(reinterpret_cast<const char*>(&n), sizeof(n));
-        if (n) ofs.write(s.data(), n);
+        if (n) ofs.write(s.data(),(int64_t) n);
         return bool(ofs);
     }
 
      bool readString(std::ifstream &ifs, std::string &s) {
-        uint32_t n;
+        uint64_t n;
         ifs.read(reinterpret_cast<char*>(&n), sizeof(n));
         if (!ifs) return false;
         s.resize(n);
-        if (n) ifs.read(&s[0], n);
+        if (n) ifs.read(&s[0], (int64_t) n);
         return bool(ifs);
     }
 

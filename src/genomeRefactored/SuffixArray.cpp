@@ -8,6 +8,7 @@
 namespace RefactorProcessing{
     void SuffixArray::build(const std::string &seq) {
         if (buildMethod == "SAIS") buildSAIS(seq);
+        else if (buildMethod == "CAPS") buildCAPS(seq);
         else if (buildMethod == "Traditional") buildTraditional(seq);
         /*for (int i = 0; i<10;++i){
             std::cout << suffixArray_[i] << " ";
@@ -15,7 +16,7 @@ namespace RefactorProcessing{
         std::cout << "\n";
     }
 
-    void SuffixArray::buildFromOtherInit(const SuffixArray &other, int newLength) {
+    void SuffixArray::buildFromOtherInit(const SuffixArray &other, int64_t newLength) {
         buildMethod = other.buildMethod;
         length_ = newLength;
         wordBits_ = other.wordBits_;

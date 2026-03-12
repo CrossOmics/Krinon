@@ -169,13 +169,17 @@ namespace RefactorProcessing {
     }
 
     std::pair<WindowAlign, WindowAlign>
-    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, int ind) const {
+    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, size_t ind) const {
         /**
          * TODO: If `loc` can take negative values, comparing it with `sjdbSeqLength_`
          *       is only valid of casting `sjdbSeqLength_` to signed value does not
          *       overflow.
          *       I will put a runtime check for that and abort if it fails.
          */
+         /**
+          *  loc is non-negative
+          *  Also, sjdbSeqLength_ is at most 2 * sjdbNum_ * sjdbLength_, which is very unlikely to overflow 64 bits
+          */
         uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
         if (genomeIndex_.genome_.sjdbSeqLength_ > max_int64) {
             std::cerr << "FATAL: `sjdbSeqLength_` overflow!";
@@ -185,18 +189,18 @@ namespace RefactorProcessing {
         WindowAlign wa;
         WindowAlign wa2;
         wa2.direction = 2;// 2 means dummy
-        int64_t loc = genomeIndex_.suffixArray_[ind];
+        size_t loc = genomeIndex_.suffixArray_[ind];
         if (genomeIndex_.genome_.sjdbNum_ >0 && loc > genomeIndex_.genome_.sjdbStart_){
             // maybe a cross-sjdb alignment
             loc -= genomeIndex_.genome_.sjdbStart_;
             int dir = 0;
-            if (loc > (int64_t) genomeIndex_.genome_.sjdbSeqLength_) {
+            if (loc > genomeIndex_.genome_.sjdbSeqLength_) {
                 dir = 1;
                 loc = 2 * genomeIndex_.genome_.sjdbSeqLength_ - loc - a.length;
             }
 
-            int64_t startInSj = loc % sjdbLength_;
-            if (startInSj < sjdbOverhang_ && startInSj + a.length > sjdbOverhang_) {
+            size_t startInSj = loc % sjdbLength_;
+            if (startInSj < (size_t)sjdbOverhang_ && startInSj + a.length > (size_t) sjdbOverhang_) {
                 // crossing sjdb
                 int sjIndex = loc / sjdbLength_;
                 int64_t donorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex] + startInSj;
@@ -226,7 +230,7 @@ namespace RefactorProcessing {
             }
         }
 
-        if (loc > (int64_t) genomeIndex_.genome_.genomeLength_) {
+        if (loc > genomeIndex_.genome_.genomeLength_) {
             //reverse strand
             wa.genomeStart = genomeIndex_.genome_.genomeLength_ * 2 - loc - a.length;
             wa.readStart = read_->length - a.readPos - a.length;
@@ -260,6 +264,7 @@ namespace RefactorProcessing {
     }
 
     void Stitching::createWindowFromAnchor(const RefactorProcessing::WindowAlign &anchor) {
+        if (windows_.size() >= (size_t) maxWindows_) return;
         auto location = anchor.genomeStart;
         auto chrId = genomeIndex_.genome_.getPosChrIndex(location);
         Chromosome chr = genomeIndex_.genome_.chromosomes_[chrId];
@@ -349,11 +354,7 @@ namespace RefactorProcessing {
         for (const auto &align: *alignments_) {
             if (!align.isAnchor) continue;
 
-            /**
-             * TODO: I do not think you need these indices to be signed,
-             *       If you change that, remove these casts.
-             */
-            for (size_t i = (size_t) align.leftSAIndex; i <= (size_t) align.rightSAIndex; ++i) {
+            for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
                 // get positive window align
                 // handle sjdb
                 auto [anchor, anchor2] = convertAlignToPositiveStrandWindowAlign(align, i);
@@ -387,6 +388,9 @@ namespace RefactorProcessing {
             win.endBin = rightBin;
             // reserve space for alignments
             // TODO: Are you sure this is correct? these pointer arithmetics look risky ...
+            /**
+             * fixed, I forgot to limit the number of windows created in createWindowFromAnchor
+             */
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
             memset((void*) win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;
@@ -509,7 +513,7 @@ namespace RefactorProcessing {
 
     void Stitching::assignAlignment() {
         for (const auto &align: *alignments_) {
-            for (int64_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
+            for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
                 // ignore too repetitive alignments
                 if (align.rep > maxRep_) continue;
                 // get positive window align
