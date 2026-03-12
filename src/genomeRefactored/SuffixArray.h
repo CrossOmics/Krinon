@@ -35,7 +35,7 @@ namespace RefactorProcessing {
         ~SuffixArray(){};
         void build(const std::string &seq);
 
-        void buildFromOtherInit(const SuffixArray &other,int newLength);
+        void buildFromOtherInit(const SuffixArray &other,int64_t newLength);
 
         void setParam(const Parameters &P);
 

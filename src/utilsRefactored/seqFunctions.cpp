@@ -21,18 +21,18 @@ namespace RefactorProcessing {
 
 
     bool writeString(std::ofstream &ofs, const std::string &s) {
-        uint32_t n = static_cast<uint32_t>(s.size());
+        uint64_t n = s.size();
         ofs.write(reinterpret_cast<const char*>(&n), sizeof(n));
-        if (n) ofs.write(s.data(), n);
+        if (n) ofs.write(s.data(),(int64_t) n);
         return bool(ofs);
     }
 
      bool readString(std::ifstream &ifs, std::string &s) {
-        uint32_t n;
+        uint64_t n;
         ifs.read(reinterpret_cast<char*>(&n), sizeof(n));
         if (!ifs) return false;
         s.resize(n);
-        if (n) ifs.read(&s[0], n);
+        if (n) ifs.read(&s[0], (int64_t) n);
         return bool(ifs);
     }
 

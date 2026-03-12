@@ -16,7 +16,7 @@ namespace RefactorProcessing{
         std::cout << "\n";
     }
 
-    void SuffixArray::buildFromOtherInit(const SuffixArray &other, int newLength) {
+    void SuffixArray::buildFromOtherInit(const SuffixArray &other, int64_t newLength) {
         buildMethod = other.buildMethod;
         length_ = newLength;
         wordBits_ = other.wordBits_;
