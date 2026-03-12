@@ -224,7 +224,7 @@ namespace RefactorProcessing {
         // stitching process
         void init(std::vector<Align>* a);
 
-        std::pair<WindowAlign,WindowAlign> convertAlignToPositiveStrandWindowAlign(const Align& a, int ind) const;
+        std::pair<WindowAlign,WindowAlign> convertAlignToPositiveStrandWindowAlign(const Align& a, size_t ind) const;
 
         void process(std::vector<Align>& aligns, Read* read);
 

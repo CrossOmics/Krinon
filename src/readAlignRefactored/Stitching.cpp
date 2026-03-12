@@ -169,7 +169,7 @@ namespace RefactorProcessing {
     }
 
     std::pair<WindowAlign, WindowAlign>
-    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, int ind) const {
+    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, size_t ind) const {
         /**
          * TODO: If `loc` can take negative values, comparing it with `sjdbSeqLength_`
          *       is only valid of casting `sjdbSeqLength_` to signed value does not
