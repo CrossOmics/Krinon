@@ -1,5 +1,9 @@
+// #include <time.h>
+#include <cassert>
 #include <cstring>
+#include <filesystem>
 #include "ReadAligner.h"
+
 namespace RefactorProcessing{
     void ReadAlignerSingleThread::setParam(const Parameters &P) {
         isPairedEnd_ = P.isPaired;
@@ -74,8 +78,9 @@ namespace RefactorProcessing{
             seedMapping_.aligns_.clear();
             seedMapping_.process(&r);
             stitchingManagement_.process(seedMapping_.aligns_, &r);
+            // std::cout << "Read: " << readCount << " | Transcript Length: " << stitchingManagement_.resultTranscriptLength_ << std::endl;
             // output SAM records
-            std::memcpy(outputBuffer_ + outputPos_, stitchingManagement_.resultTranscriptBuffer_,stitchingManagement_.resultTranscriptLength_);
+            std::memcpy(outputBuffer_ + outputPos_, stitchingManagement_.resultTranscriptBuffer_, stitchingManagement_.resultTranscriptLength_);
             outputPos_ += stitchingManagement_.resultTranscriptLength_;
             if (outputPos_ > outputBufferSize_) {
                 outputSAM_->outputSAM(outputBuffer_, outputPos_);
@@ -88,7 +93,7 @@ namespace RefactorProcessing{
                 }
                 timeReport_->tryReportProgress(threadId_,readCount);
             }
-
+            // usleep(1000000);
         }
         if (outputPos_ > 0) {
             outputSAM_->outputSAM(outputBuffer_, outputPos_);
@@ -99,18 +104,35 @@ namespace RefactorProcessing{
     void ReadAligner::setParam(const Parameters &P) {
         threads = P.workingThreads;
         readScanner_.setParam(P);
+        /**
+         * TODO: Please correct me if I am wrong, but when I discussed with Chandra, we were
+         *       under the impression that the output `SAM` file is roughly of the same size
+         *       as the input read (i.e. at most a few times bigger).
+         *       Knowing this upper bound can help make a completely lock free multi-threaded
+         *       program which can achieve much higher throughput with many threads, and only
+         *       needs to truncate/resize the output at most once.
+         *       But I see that the initial file size here seems to be hardcoded and then expanded
+         *       later when needed. Do we actually have to be this careful?
+         *       We only need a rough upper bound for the above to work.
+         */
         outputSAM_.setParam(P, 1e9);
         gIndex_.setParam(P);
-        gIndexDir_ = P.genomeGenerateFileStoreDir + "GeIndex";
+        gIndexDir_ = (std::filesystem::path(P.genomeGenerateFileStoreDir) / "GeIndex").string();
     }
 
     void ReadAligner::loadGenome() {
-        gIndex_.loadFromFile(gIndexDir_);
+        /**
+         * TODO: `loadFromFile` handles many error cases. I cannot tell which one of them
+         *       is fatal and which one can be handled later, so for now, I am forcing it
+         *       to be error free.
+         *       Since this is before calling `mmap`, we can just abort without leaking.
+         */
+        assert(!gIndex_.loadFromFile(gIndexDir_));
     }
 
     void ReadAligner::init(const Parameters &P, int threadNum) {
         setParam(P);
-        std::cout << "Loading genome file ..." << std::endl;
+        std::cout << "Loading genome file(s) at " << gIndexDir_ << std::endl;
         loadGenome();
         std::cout << "Current genome length: " << this->gIndex_.genome_.genomeLength_ << std::endl;
         std::cout << "Genome loading done" << std::endl;
@@ -138,6 +160,4 @@ namespace RefactorProcessing{
 
         outputSAM_.close();
     }
-
-
 }
