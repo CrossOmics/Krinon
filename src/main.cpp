@@ -2,11 +2,13 @@
 //#include "readAlign/ReadAligner.h"
 //#include "readAlign/ReadAlignMultiThread.h"
 //#include "utils/Parameters.h"
+#include <filesystem>
 #include "genomeRefactored/GenomeIndex.h"
 #include "io/ReadScanner.h"
 #include "io/OutputSAM.h"
 #include "readAlignRefactored/ReadAligner.h"
 
+namespace fs = std::filesystem;
 
 int main(int argc, char* argv[]){
     // usage: ./RNAAlignRefactored <reference_genome_file> <read_file>
@@ -79,7 +81,8 @@ int main(int argc, char* argv[]){
             gtf.fillSjdbLoci(Pa.outPutDir, genomeIndex.genome_);
             genomeIndex.modify(gtf);
         }
-        genomeIndex.writeToFile(Pa.genomeGenerateFileStoreDir+ "GeIndex");
+        auto output = fs::path(Pa.genomeGenerateFileStoreDir) / "GeIndex";
+        genomeIndex.writeToFile(output.string());
     }
     if (mode == "ReadAlign" || mode == "both") {
         std::cout << "Doing alignment" << std::endl;
@@ -88,6 +91,4 @@ int main(int argc, char* argv[]){
         std::cout << "Initialized alignment" << std::endl;
         readAligner.alignReads();
     }
-
-
 }

@@ -68,8 +68,16 @@ namespace RefactorProcessing {
         }
 
         // enlarge the file and remap if newSize exceeds current size
+        /**
+         * TODO: This is faulty. It does not reallocate for the mapped file on disk
+         *       and thus runs into a `BUSERR` the moment we cross the original bound.
+         */
         void ensureSize(int64_t newSize) {
             if (newSize <= size_) return; // no need to resize
+            // First, enlarge the file
+            if (ftruncate(fd_, newSize) == -1) {
+                throw std::runtime_error("Failed to enlarge the mapped file");
+            }
             void *new_ptr = mremap(mapPtr_, size_, newSize, MREMAP_MAYMOVE);
             if (new_ptr == MAP_FAILED) {
                 throw std::runtime_error("Failed to remap memory to new size");

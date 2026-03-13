@@ -1,14 +1,16 @@
 #include <cstring>
+#include <filesystem>
 #include "OutputSAM.h"
 #include "../log/ErrorRecord.h"
+
 namespace RefactorProcessing{
     void OutputSAM::setParam(const Parameters &P, int initialFileSize) {
-        outputFileName_ = P.outPutDir + "outAligned.out.sam";
+        outputFileName_ = (std::filesystem::path(P.outPutDir) / "outAligned.out.sam").string();
         sortByCoordinate_ = false;
-        std::cout << "Attempting to get mmap'ed file at " << outputFileName_ << std::endl;
+        std::cout << "Attempting to get mmap'ed file at " << outputFileName_ << " and initial size " << initialFileSize << std::endl;
         // memory-map the output file
         try {
-            outputFile_.reset(new MemoryMappedFile(outputFileName_, (long long)initialFileSize));
+            outputFile_.reset(new MemoryMappedFile(outputFileName_, (long long) initialFileSize));
             mmapPos_ = 0;
             fileSize_ = outputFile_->size();
         } catch (const std::exception &e) {
@@ -18,8 +20,6 @@ namespace RefactorProcessing{
     }
 
     void OutputSAM::outputSAM(char* samRecord, size_t size) {
-
-
         if (!outputFile_ || fileSize_ == 0) {
             rna::ErrorRecord().reportError("Output file is not available for writing");
             return;
@@ -33,8 +33,6 @@ namespace RefactorProcessing{
         mmapPos_ += size;
         outputFileLock_.unlock();
         std::memcpy(base, samRecord, size);
-
-
     }
 
     void OutputSAM::close() {

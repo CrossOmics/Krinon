@@ -45,7 +45,7 @@ namespace RefactorProcessing{
     }
 
 
-    void ReadScanner::loadFromFastq(char* targetBuffer1,char* targetBuffer2,const size_t bufferSize,size_t& buffer1Length,size_t& buffer2Length) {
+    void ReadScanner::loadFromFastq(char* targetBuffer1, char* targetBuffer2, const size_t bufferSize,size_t& buffer1Length, size_t& buffer2Length) {
         if (bufferSize <= 1) return;
 
         std::lock_guard<std::mutex> lock(readFileLock_);
@@ -100,12 +100,12 @@ namespace RefactorProcessing{
 
         // prefer mmap path if available
         if (mmapFile1_) {
-            fillFromMmap(mmapFile1_, mmapPos1_, fileSize1_, targetBuffer1,buffer1Length);
+            fillFromMmap(mmapFile1_, mmapPos1_, fileSize1_, targetBuffer1, buffer1Length);
         }
 
         if (isPairedEnd_) {
             if (mmapFile2_) {
-                fillFromMmap(mmapFile2_, mmapPos2_, fileSize2_, targetBuffer2,buffer2Length);
+                fillFromMmap(mmapFile2_, mmapPos2_, fileSize2_, targetBuffer2, buffer2Length);
             }
         }
     }
