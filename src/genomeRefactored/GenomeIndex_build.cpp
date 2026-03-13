@@ -7,11 +7,11 @@
 namespace RefactorProcessing {
     GenomeIndex::GenomeIndex(){
         //std::cout << "GenomeIndex constructor\n";
-    };
+    }
 
     GenomeIndex::~GenomeIndex(){
         std::cout << "GenomeIndex destructor\n";
-    };
+    }
 
     void GenomeIndex::setParam(const Parameters &P) {
         suffixArray_.setParam(P);
@@ -288,38 +288,53 @@ namespace RefactorProcessing {
     }
 
     int GenomeIndex::loadFromFile(const std::string &fileName) {
+        /**
+         * TODO: Do not return arcane integer values if you wish to report an error, like
+         *       missing/invalid headers. At least `#define` the error codes in a dedicated
+         *       file, or for a more traditional C++ way, use an `enum` class and optionally
+         *       add descriptions if you feel like it. See `GenomeErrors.h` if you wish.
+         */
         std::ifstream ifs(fileName, std::ios::binary);
         if (!ifs.is_open()) return -1;
+        // Example ...
+        // if (!ifs.is_open()) return GenomeLoadingError::FILE_ERROR;
+        // On the caller you can report with
+        // REPORT_GENOME_LOADING_ERROR(err)
 
         // header validation
         char magic[4];
         ifs.read(magic, 4);
         if (!ifs) return -2;
         if (!(magic[0]=='G' && magic[1]=='I' && magic[2]=='D' && magic[3]=='X')) return -3;
-
         uint32_t version;
         ifs.read(reinterpret_cast<char*>(&version), sizeof(version));
         if (!ifs) return -4;
+        std::cout << "version: " << version << std::endl;
         // if needed, handle different versions
 
         // read simple members
         ifs.read(reinterpret_cast<char*>(&kMerSize_), sizeof(kMerSize_));
         ifs.read(reinterpret_cast<char*>(&kMerNum_), sizeof(kMerNum_));
+        std::cout << "K-mer size/num: " << kMerSize_ << "/" << kMerNum_ << std::endl;
 
         if (!readString(ifs, additionalIndexType_)) return -5;
 
         ifs.read(reinterpret_cast<char*>(&extendHashTableByte_), sizeof(extendHashTableByte_));
         ifs.read(reinterpret_cast<char*>(&extendHashTableNum_), sizeof(extendHashTableNum_));
+        std::cout << "Extend hash table byte/num: " << extendHashTableByte_ << "/" << extendHashTableNum_ << std::endl;
 
         ifs.read(reinterpret_cast<char*>(&maxAlignNum), sizeof(maxAlignNum));
+        std::cout << "Max align num: " << maxAlignNum << std::endl;
 
         ifs.read(reinterpret_cast<char*>(&needInsertSJ_), sizeof(needInsertSJ_));
         ifs.read(reinterpret_cast<char*>(&sjdbOverhang_), sizeof(sjdbOverhang_));
         ifs.read(reinterpret_cast<char*>(&limitSjdbInsertN_), sizeof(limitSjdbInsertN_));
+        std::cout << "SJDB needInsert/Overhand/limit: " << needInsertSJ_ << "/" << sjdbOverhang_ << "/" << limitSjdbInsertN_ << std::endl;
 
         // read vectors
         uint64_t lcpSize = 0;
         ifs.read(reinterpret_cast<char*>(&lcpSize), sizeof(lcpSize));
+        std::cout << "LCP size: " << lcpSize << std::endl;
         if (!ifs) return -6;
         longestCommonPrefix_.clear();
         longestCommonPrefix_.resize(static_cast<size_t>(lcpSize));
@@ -328,6 +343,7 @@ namespace RefactorProcessing {
 
         uint64_t extSize = 0;
         ifs.read(reinterpret_cast<char*>(&extSize), sizeof(extSize));
+        std::cout << "EXT size: " << extSize << std::endl;
         if (!ifs) return -8;
         extendedIndexHash_.clear();
         extendedIndexHash_.resize(static_cast<size_t>(extSize));
@@ -337,22 +353,20 @@ namespace RefactorProcessing {
         // load complex objects from their files
         {
             std::string gfile = fileName + ".gen";
+            std::cout << "Loading GTF file: " << gfile << std::endl;
             if (genome_.loadFromFile(gfile) != 0) return -10;
         }
         {
             std::string sfile = fileName + ".sa";
+            std::cout << "Loading SA file: " << sfile << std::endl;
             if (suffixArray_.loadFromFile(sfile) != 0) return -11;
         }
         {
             std::string kfile = fileName + ".saI";
+            std::cout << "Loading SAI file: " << kfile << std::endl;
             if (patternMerMap_.loadFromFile(kfile) != 0) return -12;
         }
 
         return 0;
     }
-
-
-
-
-
 }

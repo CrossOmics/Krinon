@@ -57,42 +57,30 @@ namespace RefactorProcessing {
         // allocate memory for data structures based on parameters
         alignments_ = a;
         windows_.reserve(maxWindows_);
-        std::cout << "0" << std::endl;
         windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
-        std::cout << "1" << std::endl;
         transcripts_.resize(transcriptStoredMax_);
-        std::cout << "2" << std::endl;
         size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_ - 1)) + 2;
         std::cout << winBinNum << std::endl;
         winBinMap_[0].resize(winBinNum, -1);
-        std::cout << "3" << std::endl;
         winBinMap_[1].resize(winBinNum, -1);
-        std::cout << "4" << std::endl;
         size_t maxStitchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
         stitchRecords_.resize(maxStitchRecordNum);
-        std::cout << "5" << std::endl;
         extendRecords_[0].resize(maxSeedPerWindows_);
-        std::cout << "6" << std::endl;
         extendRecords_[1].resize(maxSeedPerWindows_);
-        std::cout << "7" << std::endl;
         allSingleExtensionRecord_.resize(maxSeedPerWindows_ * 2 * (1 + maxMismatch_));
-        std::cout << "8" << std::endl;
         for (int i = 0; i < maxSeedPerWindows_; ++i) {
             extendRecords_[0][i].maxExtensionLengthWithMismatch =
                     allSingleExtensionRecord_.data() + (i * (1 + maxMismatch_));
             extendRecords_[1][i].maxExtensionLengthWithMismatch =
                     allSingleExtensionRecord_.data() + ((i + maxSeedPerWindows_) * (1 + maxMismatch_));
         }
-        std::cout << "9" << std::endl;
         size_t maxRawTranscriptNum = maxSeedPerWindows_ * maxSeedPerWindows_;
         if (!isPaired_) rawTranscripts_.resize(maxRawTranscriptNum);
         else rawTranscriptsPaired_.resize(maxRawTranscriptNum);
         transcripts_.resize(100);
-        std::cout << "10" << std::endl;
         if (isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
 
         resultTranscriptBuffer_ = new char[transcriptStoredMax_ * 5000];
-        std::cout << "11" << std::endl;
         resultTranscriptLength_ = 0;
     }
 
