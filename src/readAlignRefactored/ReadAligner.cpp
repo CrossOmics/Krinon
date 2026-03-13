@@ -127,7 +127,7 @@ namespace RefactorProcessing{
          *       to be error free.
          *       Since this is before calling `mmap`, we can just abort without leaking.
          */
-        assert(!gIndex_.loadFromFile(gIndexDir_));
+        gIndex_.loadFromFile(gIndexDir_);
     }
 
     void ReadAligner::init(const Parameters &P, int threadNum) {
