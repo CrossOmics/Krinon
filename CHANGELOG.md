@@ -21,3 +21,7 @@ With that said, the logic is faulty. The `BUSERR` happens because of the incorre
 ## Suggestions
 - When loading the genome, I see that there are a lot of cases where we want to return some sort of error code. Consider documenting these and
 using an `enum` instead. Check the `TODO` in `GenomeIndex_build.cpp`.
+
+# [Arvin Ghavidel - 3/15/2026]
+- Added link time optimization to the CMake build file just to squeeze a bit more out of compiler optimization. Helps a little bit (single-threaded output
+went from 40M/hour to around 53M/hour).
