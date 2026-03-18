@@ -40,7 +40,7 @@ namespace RefactorProcessing {
         TimeReport *timeReport_;
         // todo add time and performance report
     public:
-        ReadAlignerSingleThread(const GenomeIndex &g) : seedMapping_(g), stitchingManagement_(g) {};
+        ReadAlignerSingleThread(const GenomeIndex &g) : seedMapping_(g), stitchingManagement_(g,seedMapping_.aligns_) {};
 
         void init(ReadScanner *rs, OutputSAM *o, TimeReport *t,const Parameters &P,
                   int threadId,int threadNum);// initialize data structures, called once

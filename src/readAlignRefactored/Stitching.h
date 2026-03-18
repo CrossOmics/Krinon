@@ -65,16 +65,16 @@ namespace RefactorProcessing {
     private:
 
     public:
-        WindowAlign* aligns; // todo try vector
-        int chrIndex;
-        int direction;
-        int numAnchors;
-        int numAligns;
-        int startBin;
-        int endBin;
-        int minLengthWhenFull;
-        int numFirstFragAligns;
-        int numSecondFragAligns;
+        WindowAlign* aligns{nullptr}; // todo try vector
+        int chrIndex{0};
+        int direction{0};
+        int numAnchors{0};
+        int numAligns{0};
+        int startBin{0};
+        int endBin{0};
+        int minLengthWhenFull{0};
+        int numFirstFragAligns{0};
+        int numSecondFragAligns{0};
         bool assignAlignment(const WindowAlign& a,int maxSeedPerWindows);
 
 
@@ -82,16 +82,16 @@ namespace RefactorProcessing {
 
     class RawTranscript {
     public:
-        int previousTranscriptId;
-        int newAlignId;
-        int score;
-        int mismatches;
-        int matches;
-        int numExon;
-        int extendedLengthForward; //extension 5' end
-        int extendedLengthBackward; // extension 3' end
+        int previousTranscriptId{-1};
+        int newAlignId{0};
+        int score{0};
+        int mismatches{0};
+        int matches{0};
+        int numExon{0};
+        int extendedLengthForward{0}; //extension 5' end
+        int extendedLengthBackward{0}; // extension 3' end
         // todo maybe no need
-        int StartAlignId; // to calc max extension
+        int StartAlignId{0}; // to calc max extension
 
         void init(const Window& win,int i,int matchScore);
 
@@ -99,14 +99,14 @@ namespace RefactorProcessing {
 
     class RawTranscriptPaired{
     public:
-        int previousTranscriptId;
-        int newAlignId;
-        int score;
-        int mismatches;
-        int matches;
-        int numExon;
-        int StartAlignId; // to calc max extension
-        int iFragment;
+        int previousTranscriptId{-1};
+        int newAlignId{0};
+        int score{0};
+        int mismatches{0};
+        int matches{0};
+        int numExon{0};
+        int StartAlignId{0}; // to calc max extension
+        int iFragment{0};
         void init(const Window& win,int i,int matchScore);
 
 
@@ -115,14 +115,14 @@ namespace RefactorProcessing {
 
 
     struct fragmentMatchRecord{
-        int fragId0;
-        int fragId1;
+        int fragId0{0};
+        int fragId1{0};
         // L0 -> F1 -> F0 -> L1
-        int extendLengthFormer0;
-        int extendLengthLatter0; // extend inside
-        int extendLengthFormer1; // extend inside
-        int extendLengthLatter1;
-        int score;
+        int extendLengthFormer0{0};
+        int extendLengthLatter0{0}; // extend inside
+        int extendLengthFormer1{0}; // extend inside
+        int extendLengthLatter1{0};
+        int score{0};
     };
 
     class Stitching {
@@ -181,7 +181,7 @@ namespace RefactorProcessing {
         // data
         const GenomeIndex& genomeIndex_;
 
-        std::vector<Align>* alignments_;//  alignments to be stitched
+        std::vector<Align>& alignments_;//  alignments to be stitched
 
         std::vector<WindowAlign> windowAlignments_;
 
@@ -207,26 +207,26 @@ namespace RefactorProcessing {
 
         std::vector<fragmentMatchRecord> fragmentMatchRecords_;
 
-        int maxTranscriptScore_;
+        int maxTranscriptScore_{0};
 
-        int numGoodTranscripts_;
+        int numGoodTranscripts_{0};
 
         char* resultTranscriptBuffer_;
 
         size_t resultTranscriptLength_;
 
-        Stitching(const GenomeIndex& g):genomeIndex_(g){};
+        Stitching(const GenomeIndex& g, std::vector<Align>& a):genomeIndex_(g),alignments_(a){};
         ~Stitching();
 
         // parameters
         void setParam(const Parameters &P);
 
         // stitching process
-        void init(std::vector<Align>* a);
+        void init();
 
-        std::pair<WindowAlign,WindowAlign> convertAlignToPositiveStrandWindowAlign(const Align& a, size_t ind) const;
+        inline bool convertAlignToPositiveStrandWindowAlign(const Align& a, size_t ind,WindowAlign &wa1, WindowAlign &wa2) const;
 
-        void process(std::vector<Align>& aligns, Read* read);
+        void process(Read* read);
 
         void identifyAnchors();
 
