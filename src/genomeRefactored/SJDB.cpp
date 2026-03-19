@@ -705,8 +705,8 @@ namespace RefactorProcessing {
             }
         }
         sjdbNum_ = sjDataBase_.size();
-        sjDonorStart_.reserve(sjdbNum_);
-        sjAcceptorStart_.reserve(sjdbNum_);
+        sjDonorStart_.resize(sjdbNum_);
+        sjAcceptorStart_.resize(sjdbNum_);
 
         size_t sjGStart = 0;
         for (size_t i = 0; i < sjdbNum_; ++i) {

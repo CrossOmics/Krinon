@@ -178,10 +178,12 @@ namespace RefactorProcessing {
         if (loc > genomeIndex_.genome_.sjdbStart_ && genomeIndex_.genome_.sjdbNum_ > 0) {
             // maybe a cross-sjdb alignment
             loc -= genomeIndex_.genome_.sjdbStart_;
-            int dir = 0;
+            int dir = a.direction;
+            int64_t readPos = a.readPos;
             if (loc > genomeIndex_.genome_.sjdbSeqLength_) {
-                dir = 1;
+                dir = 1 - a.direction;
                 loc = 2 * genomeIndex_.genome_.sjdbSeqLength_ - loc - a.length;
+                readPos = read_->length - a.readPos - a.length;
             }
 
             size_t startInSj = loc % sjdbLength_;
@@ -193,7 +195,7 @@ namespace RefactorProcessing {
                 int64_t acceptorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex];
                 int64_t acceptorLength = a.length - donorLength;
                 wa.genomeStart = donorStart;
-                wa.readStart = a.readPos;
+                wa.readStart = readPos;
                 wa.length = donorLength;
                 wa.direction = dir;
                 wa.isAnchor = a.isAnchor;
@@ -201,7 +203,7 @@ namespace RefactorProcessing {
                 wa.isj = sjIndex;
 
                 wa2.genomeStart = acceptorStart;
-                wa2.readStart = a.readPos + donorLength;
+                wa2.readStart = readPos + donorLength;
                 wa2.length = acceptorLength;
                 wa2.direction = dir;
                 wa2.isAnchor = a.isAnchor;
