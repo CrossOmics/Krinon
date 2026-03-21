@@ -7,10 +7,13 @@ namespace RefactorProcessing {
     inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a) const {
 
 
+        if (a.rep > 10000) return false; // too many reps, ignore
+
         if (results.size() >= (size_t) maxAlignNum) {
             rna::WarningRecord().reportWarning("Exceeding max alignments per read, some alignments are ignored");
             return false;
         }
+
 
         int posToInsert = -1;
         size_t readStart = a.readPos;
@@ -377,16 +380,27 @@ namespace RefactorProcessing {
 
     inline std::pair<size_t, bool>
     GenomeIndex::matchGenomeSeq(const std::string_view &pattern, size_t matchedLength, size_t pos) const {
-        size_t l;
+        size_t l = matchedLength;
+        size_t patternLength = pattern.length();
         bool greater = false;
-        for (l = matchedLength; l < pattern.length(); ++l) {
+        while (l < patternLength && pattern[l] == genome_.sequence_[pos + l]) {
+            ++l;
+        }
+
+        if (l < patternLength) {
+            if (charToIndex(genome_.sequence_[pos + l]) < 0)
+                greater = true;// 'N' and '#' are regarded as the largest
+            else greater = pattern[l] < genome_.sequence_[pos + l];
+        }
+
+        /*for (l = matchedLength; l < pattern.length(); ++l) {
             if (pattern[l] != genome_.sequence_[pos + l]) {
                 if (charToIndex(genome_.sequence_[pos + l]) < 0)
                     greater = true;// 'N' and '#' are regarded as the largest
                 else greater = pattern[l] < genome_.sequence_[pos + l];
                 break;
             }
-        }
+        }*/
         return {l, greater};
     }
 }

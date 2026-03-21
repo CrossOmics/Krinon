@@ -53,9 +53,8 @@ namespace RefactorProcessing {
 
     }
 
-    void Stitching::init(std::vector<Align> *a) {
+    void Stitching::init() {
         // allocate memory for data structures based on parameters
-        alignments_ = a;
         windows_.reserve(maxWindows_);
         windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
         transcripts_.resize(transcriptStoredMax_);
@@ -94,15 +93,14 @@ namespace RefactorProcessing {
         numGoodTranscripts_ = 0;
     }
 
-    void Stitching::process(std::vector<RefactorProcessing::Align> &aligns, RefactorProcessing::Read *read) {
-        if (aligns.size() == 0) {
+    void Stitching::process(RefactorProcessing::Read *read) {
+        if (alignments_.size() == 0) {
             return;
         }
         resultTranscriptLength_ = 0;
         maxTranscriptScore_ = 0;
         numGoodTranscripts_ = 0;
         read_ = read;
-        alignments_ = &aligns;
         outFilterScoreMin_ = int(double(read_->length) * outFilterScoreMinOverLRead_);
         outFilterMatchMin_ = int(double(read_->length) * outFilterMatchMinOverLRead_);
 
@@ -156,39 +154,40 @@ namespace RefactorProcessing {
         }
     }
 
-    std::pair<WindowAlign, WindowAlign>
-    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, size_t ind) const {
+    inline bool
+    Stitching::convertAlignToPositiveStrandWindowAlign(const Align &a, size_t ind, WindowAlign &wa,
+                                                       WindowAlign &wa2) const {
         /**
          * TODO: If `loc` can take negative values, comparing it with `sjdbSeqLength_`
          *       is only valid of casting `sjdbSeqLength_` to signed value does not
          *       overflow.
          *       I will put a runtime check for that and abort if it fails.
          */
-         /**
-          *  loc is non-negative
-          *  Also, sjdbSeqLength_ is at most 2 * sjdbNum_ * sjdbLength_, which is very unlikely to overflow 64 bits
-          */
-        uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+        /**
+         *  loc is non-negative
+         *  Also, sjdbSeqLength_ is at most 2 * sjdbNum_ * sjdbLength_, which is very unlikely to overflow 64 bits
+         */
+        /*uint64_t max_int64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
         if (genomeIndex_.genome_.sjdbSeqLength_ > max_int64) {
             std::cerr << "FATAL: `sjdbSeqLength_` overflow!";
             std::abort();
-        }
+        }*/
         //sjdb check
-        WindowAlign wa;
-        WindowAlign wa2;
         wa2.direction = 2;// 2 means dummy
         size_t loc = genomeIndex_.suffixArray_[ind];
-        if (genomeIndex_.genome_.sjdbNum_ >0 && loc > genomeIndex_.genome_.sjdbStart_){
+        if (loc > genomeIndex_.genome_.sjdbStart_ && genomeIndex_.genome_.sjdbNum_ > 0) {
             // maybe a cross-sjdb alignment
             loc -= genomeIndex_.genome_.sjdbStart_;
-            int dir = 0;
+            int dir = a.direction;
+            int64_t readPos = a.readPos;
             if (loc > genomeIndex_.genome_.sjdbSeqLength_) {
-                dir = 1;
+                dir = 1 - a.direction;
                 loc = 2 * genomeIndex_.genome_.sjdbSeqLength_ - loc - a.length;
+                readPos = read_->length - a.readPos - a.length;
             }
 
             size_t startInSj = loc % sjdbLength_;
-            if (startInSj < (size_t)sjdbOverhang_ && startInSj + a.length > (size_t) sjdbOverhang_) {
+            if (startInSj < (size_t) sjdbOverhang_ && startInSj + a.length > (size_t) sjdbOverhang_) {
                 // crossing sjdb
                 int sjIndex = loc / sjdbLength_;
                 int64_t donorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex] + startInSj;
@@ -196,7 +195,7 @@ namespace RefactorProcessing {
                 int64_t acceptorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex];
                 int64_t acceptorLength = a.length - donorLength;
                 wa.genomeStart = donorStart;
-                wa.readStart = a.readPos;
+                wa.readStart = readPos;
                 wa.length = donorLength;
                 wa.direction = dir;
                 wa.isAnchor = a.isAnchor;
@@ -204,17 +203,17 @@ namespace RefactorProcessing {
                 wa.isj = sjIndex;
 
                 wa2.genomeStart = acceptorStart;
-                wa2.readStart = a.readPos + donorLength;
+                wa2.readStart = readPos + donorLength;
                 wa2.length = acceptorLength;
                 wa2.direction = dir;
                 wa2.isAnchor = a.isAnchor;
                 wa2.iFragment = a.iFragment;
                 wa2.isj = sjIndex;
-                return {wa, wa2};
-            }else {
+                return true;
+            } else {
                 // not crossing sjdb
                 wa.direction = 2;
-                return {wa,wa2};
+                return false;
             }
         }
 
@@ -236,13 +235,13 @@ namespace RefactorProcessing {
             wa.iFragment = a.iFragment;
         }
 
-        return {wa, wa2};
+        return true;
 
     }
 
     void Stitching::identifyAnchors() {
         // select anchors based on rep
-        for (auto &align: *alignments_) {
+        for (auto &align: alignments_) {
             if (align.rep <= maxAnchorRep_) {
                 align.isAnchor = true;
             } else {
@@ -255,7 +254,7 @@ namespace RefactorProcessing {
         if (windows_.size() >= (size_t) maxWindows_) return;
         auto location = anchor.genomeStart;
         auto chrId = genomeIndex_.genome_.getPosChrIndex(location);
-        Chromosome chr = genomeIndex_.genome_.chromosomes_[chrId];
+        const Chromosome &chr = genomeIndex_.genome_.chromosomes_[chrId];
         int chrStartBin = chr.start >> winBinSizeLog_;
         int chrEndBin = (chr.start + chr.length - 1) >> winBinSizeLog_;
 
@@ -338,16 +337,19 @@ namespace RefactorProcessing {
 
     void Stitching::createWindows() {
         // create and try to extend windows
+        size_t numAlignments = alignments_.size();
+        WindowAlign anchor, dummy;
 
-        for (const auto &align: *alignments_) {
+        for (size_t iA = 0; iA < numAlignments; ++iA) {
+            auto &align = alignments_[iA];
             if (!align.isAnchor) continue;
 
             for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
                 // get positive window align
                 // handle sjdb
-                auto [anchor, anchor2] = convertAlignToPositiveStrandWindowAlign(align, i);
+                bool valid = convertAlignToPositiveStrandWindowAlign(align, i, anchor, dummy);
 
-                if (anchor.direction == 2) continue; // not a valid alignment
+                if (!valid) continue; // not a valid alignment
                 createWindowFromAnchor(anchor);
                 // todo ? no need to create anchor2 for a pair of cross-sjdb aligns
             }
@@ -380,7 +382,7 @@ namespace RefactorProcessing {
              * fixed, I forgot to limit the number of windows created in createWindowFromAnchor
              */
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
-            memset((void*) win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
+            memset((void *) win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;
             win.numAnchors = 0;
             win.numFirstFragAligns = 0;
@@ -500,20 +502,23 @@ namespace RefactorProcessing {
     }
 
     void Stitching::assignAlignment() {
-        for (const auto &align: *alignments_) {
+        size_t numAlignments = alignments_.size();
+        WindowAlign wa, wa2;
+        for (size_t iA = 0; iA < numAlignments; ++iA) {
+            auto &align = alignments_[iA];
+            // ignore too repetitive alignments
+            if (align.rep > maxRep_) continue;
             for (size_t i = align.leftSAIndex; i <= align.rightSAIndex; ++i) {
-                // ignore too repetitive alignments
-                if (align.rep > maxRep_) continue;
                 // get positive window align
                 // handle sjdb
-                auto [wa, wa2] = convertAlignToPositiveStrandWindowAlign(align, i);
-                if (wa.direction == 2) continue; // not a valid alignment
+                bool valid = convertAlignToPositiveStrandWindowAlign(align, i, wa, wa2);
+                if (!valid) continue;
                 size_t bin = (wa.genomeStart >> winBinSizeLog_);
                 auto winId = winBinMap_[wa.direction][bin];
                 if (winId == -1) continue;
                 Window &win = windows_[winId];
                 win.assignAlignment(wa, maxSeedPerWindows_);
-                if (wa2.direction!= 2) {
+                if (wa2.direction != 2) {
                     size_t bin2 = (wa2.genomeStart >> winBinSizeLog_);
                     auto winId2 = winBinMap_[wa2.direction][bin2];
                     if (winId2 == -1) continue;
@@ -586,11 +591,11 @@ namespace RefactorProcessing {
 
 
         //sjdb check
-        if(a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart ){
+        if (a1.isj != -1 && a1.isj == a2.isj && a2.readStart == a1ReadEnd + 1 && a1GenomeEnd + 1 < a2.genomeStart) {
             // annotated splice junction
             if (genomeIndex_.genome_.sjDataBase_[a2.isj].motif == 0
-                &&(a2.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftRight||
-                   a1.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftLeft)) {
+                && (a2.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftRight ||
+                    a1.length <= genomeIndex_.genome_.sjDataBase_[a2.isj].shiftLeft)) {
                 // too large repeats around non-canonical
                 record.type = StitchRecord::CANNOT_STITCH;
                 return;
@@ -783,7 +788,6 @@ namespace RefactorProcessing {
             record.mismatches = nMismatch;
 
 
-
         } else if (readGap > genomeGap) {
             //insert
             record.score = MATCH_SCORE_ * a2Length;
@@ -856,11 +860,13 @@ namespace RefactorProcessing {
         int extendScore = 0;
         if (extendDir == 0) {
             // extend forward
-            int64_t extendLength = a.readStart;
+            int64_t extendLength = std::min(a.readStart,a.genomeStart);
             int l = 1;
             for (l = 1; l <= extendLength; ++l) {
-                int64_t genomePos = a.genomeStart - l;
-                int64_t readPos = a.readStart - l;
+                size_t genomePos = a.genomeStart - l;
+                size_t readPos = a.readStart - l;
+
+
                 if (genomeSeq[genomePos] == 'N' || readSeq[readPos] == 'N') continue;
                 if (genomeSeq[genomePos] == '#') break;
                 if (readSeq[readPos] == '#') break; // spacer between paired reads
@@ -1080,6 +1086,13 @@ namespace RefactorProcessing {
         }
 
         for (int i = 0; i < numAligns; ++i) {
+            if (window.aligns[i].readStart + window.aligns[i].length >= read_->length - 5) {
+                //todo replace the hardcoded 5 with a parameter
+                for (int j = i + 1; j < numAligns; ++j) {
+                    StitchRecord &record = stitchRecords_[calcStitchRecPos(i, j)];
+                    record.type = StitchRecord::CANNOT_STITCH; // cannot stitch if one alignment reaches the end of the read
+                }
+            }
             for (int j = i + 1; j < numAligns; ++j) {
                 StitchRecord &record = stitchRecords_[calcStitchRecPos(i, j)];
                 stitchWindowAlign(window, window.aligns[i], window.aligns[j], record);

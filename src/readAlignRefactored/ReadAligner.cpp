@@ -39,7 +39,7 @@ namespace RefactorProcessing{
         seedMapping_.setParam(P);
         stitchingManagement_.setParam(P);
         std::cout << "Calling init on management" << std::endl;
-        stitchingManagement_.init(&seedMapping_.aligns_);
+        stitchingManagement_.init();
 
         readScanner_ = rs;
         outputSAM_ = o;
@@ -77,7 +77,7 @@ namespace RefactorProcessing{
 
             seedMapping_.aligns_.clear();
             seedMapping_.process(&r);
-            stitchingManagement_.process(seedMapping_.aligns_, &r);
+            stitchingManagement_.process( &r);
             // std::cout << "Read: " << readCount << " | Transcript Length: " << stitchingManagement_.resultTranscriptLength_ << std::endl;
             // output SAM records
             std::memcpy(outputBuffer_ + outputPos_, stitchingManagement_.resultTranscriptBuffer_, stitchingManagement_.resultTranscriptLength_);

@@ -292,7 +292,7 @@ namespace RefactorProcessing {
         for (size_t i = 0; i < sjSeqLength; ++i) {
             sjdb.sjdbSeq_[2 * sjSeqLength - 1 - i] = complement(sjdb.sjdbSeq_[i]);
         }
-        sjdb.sjdbSeq_ += std::string('#',SJDB_PADDING_LENGTH); //padding to avoid overflow
+        sjdb.sjdbSeq_ += std::string(SJDB_PADDING_LENGTH,'#'); //padding to avoid overflow
 
         genome_.sequence_ += sjdb.sjdbSeq_;
 
@@ -705,8 +705,8 @@ namespace RefactorProcessing {
             }
         }
         sjdbNum_ = sjDataBase_.size();
-        sjDonorStart_.reserve(sjdbNum_);
-        sjAcceptorStart_.reserve(sjdbNum_);
+        sjDonorStart_.resize(sjdbNum_);
+        sjAcceptorStart_.resize(sjdbNum_);
 
         size_t sjGStart = 0;
         for (size_t i = 0; i < sjdbNum_; ++i) {
@@ -725,6 +725,7 @@ namespace RefactorProcessing {
             memset((void *) (sjdb.sjdbSeq_.c_str() + sjGStart + sjdb.sjdbOverhang * 2),'#',SJDB_PADDING_LENGTH);
             sjGStart += sjdb.sjdbLength;
         }
+        sjdb.sjdbSeq_.resize(2*sjdbNum_*sjdb.sjdbLength);
 
 
 
