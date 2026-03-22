@@ -78,13 +78,6 @@ namespace RefactorProcessing {
         else rawTranscriptsPaired_.resize(maxRawTranscriptNum);
         transcripts_.resize(100);
         if (isPaired_) size_t maxFragmentMatchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;
-
-        resultTranscriptBuffer_ = new char[transcriptStoredMax_ * 5000];
-        resultTranscriptLength_ = 0;
-    }
-
-    Stitching::~Stitching() {
-        delete[] resultTranscriptBuffer_;
     }
 
     void Stitching::clear() {
@@ -93,11 +86,10 @@ namespace RefactorProcessing {
         numGoodTranscripts_ = 0;
     }
 
-    void Stitching::process(RefactorProcessing::Read *read) {
+    void Stitching::process(RefactorProcessing::Read *read, std::string& outputBuffer) {
         if (alignments_.size() == 0) {
             return;
         }
-        resultTranscriptLength_ = 0;
         maxTranscriptScore_ = 0;
         numGoodTranscripts_ = 0;
         read_ = read;
@@ -136,21 +128,14 @@ namespace RefactorProcessing {
         }
         numGoodTranscripts_ = trueNumGoodTranscripts;
 
-        convertToResult();
+        convertToResult(outputBuffer);
 
         clear();
-
-
     }
 
-    void Stitching::convertToResult() {
-
+    void Stitching::convertToResult(std::string& outputBuffer) {
         for (int i = 0; i < numGoodTranscripts_; ++i) {
-            std::string s = transcripts_[i].convertToSAM(*read_, isPaired_, numGoodTranscripts_);
-            size_t len = s.length();
-            //todo handle buffer overflow
-            std::memcpy(resultTranscriptBuffer_ + resultTranscriptLength_, s.c_str(), len);
-            resultTranscriptLength_ += len;
+            transcripts_[i].convertToSAM(*read_, isPaired_, numGoodTranscripts_, outputBuffer);
         }
     }
 

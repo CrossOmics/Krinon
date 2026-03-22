@@ -1,23 +1,34 @@
 #ifndef RNAALIGNREFACTORED_MEMORYMAPPEDFILER_HPP
 #define RNAALIGNREFACTORED_MEMORYMAPPEDFILER_HPP
+#include <atomic>
 #include <string>
 #include <thread>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <stdexcept>
+
 namespace RefactorProcessing {
     class MemoryMappedFile {
     private:
-        int64_t size_;
+        size_t size_;
         int fd_;
         char* mapPtr_;
+        /**
+         * TODO: (ARVIN)
+         *       The offset probably needs to always be page-aligned.
+         *       Make sure to test it ...
+         */
+        const size_t initialOffset_;
+        std::atomic<size_t> offset_;
 
     public:
-        MemoryMappedFile(const std::string& path, long long maxSize) :
+        MemoryMappedFile(const std::string& path, size_t maxSize, size_t initialOffset = 0) :
                 size_(maxSize),
                 fd_(-1),
-                mapPtr_(nullptr)
+                mapPtr_(nullptr),
+                initialOffset_{initialOffset},
+                offset_{initialOffset}
         {
             fd_ = open(path.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
             if (fd_ == -1) {
@@ -29,7 +40,7 @@ namespace RefactorProcessing {
                 throw std::runtime_error("Failed to truncate " + path);
             }
 
-            mapPtr_ = static_cast<char*>(mmap(NULL, size_, PROT_WRITE, MAP_SHARED, fd_, 0));
+            mapPtr_ = static_cast<char*>(mmap(NULL, size_, PROT_WRITE, MAP_SHARED, fd_, initialOffset_));
             if (mapPtr_ == MAP_FAILED) {
                 close(fd_);
                 throw std::runtime_error("Failed to map " + path + " into memory");
@@ -47,15 +58,25 @@ namespace RefactorProcessing {
             return mapPtr_;
         }
 
-        int64_t size() const {
+        size_t size() const {
             return size_;
         }
 
-        void truncate(int64_t newSize) {
+        void truncate(size_t newSize) {
             if (ftruncate(fd_, newSize) == -1) {
                 throw std::runtime_error("Failed to truncate file to new size");
             }
             size_ = newSize;
+        }
+
+        /**
+         * Atomically claim the interval `[mapPtr_ + offset_, mapPtr_ + offset_ + howMuch)`.
+         * Returns pointer to the start of the interval and offset into the mapped region.
+         */
+        std::pair<char*, size_t> claim(size_t howMuch) {
+            size_t offset = offset_.fetch_add(howMuch, std::memory_order_relaxed);
+            char* ptr = mapPtr_ + offset;
+            return std::make_pair(ptr, offset);
         }
 
         void memClose() {
@@ -68,11 +89,7 @@ namespace RefactorProcessing {
         }
 
         // enlarge the file and remap if newSize exceeds current size
-        /**
-         * TODO: This is faulty. It does not reallocate for the mapped file on disk
-         *       and thus runs into a `BUSERR` the moment we cross the original bound.
-         */
-        void ensureSize(int64_t newSize) {
+        void ensureSize(size_t newSize) {
             if (newSize <= size_) return; // no need to resize
             // First, enlarge the file
             if (ftruncate(fd_, newSize) == -1) {

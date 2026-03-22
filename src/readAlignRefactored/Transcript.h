@@ -41,7 +41,7 @@ namespace RefactorProcessing {
 
         std::string getCIGAR() const;
 
-        std::string convertToSAM(Read& r,bool isPaired, int mulmapNum) const;
+        void convertToSAM(Read& r, bool isPaired, int mulmapNum, std::string& out) const;
     };
 }
 #endif //RNAALIGNREFACTORED_TRANSCRIPT_H
