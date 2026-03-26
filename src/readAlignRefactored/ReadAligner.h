@@ -57,8 +57,7 @@ namespace RefactorProcessing {
 
         void process(std::atomic<int>& activeThreads);
         // We use 8MB output buffers
-        // const size_t MAX_OUTPUT_BUFFER_SIZE = 8ULL * 1024 * 1024;
-        const size_t MAX_OUTPUT_BUFFER_SIZE = 8ULL * 64;
+        const size_t MAX_OUTPUT_BUFFER_SIZE = 8ULL * 1024 * 1024;
     };
 
     class ReadAligner {

@@ -18,7 +18,7 @@ namespace RefactorProcessing {
     void TimeReport::tryActivateReport(int threadNum) {
         //thread 0
         auto now = std::chrono::system_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>(now - previousReportTime).count() >= 60) {
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - previousReportTime).count() >= 10) {
             // activate report
             previousReportTime = now;
             for (int i = 0; i < threadsUnfinished.load(); ++i) {

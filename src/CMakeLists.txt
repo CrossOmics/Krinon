@@ -16,7 +16,7 @@ add_executable(RNAAlignRefactored main.cpp
     utilsRefactored/PackedArray.cpp
     utilsRefactored/timeFunctions.cpp
     io/Parameters.cpp
-    io/MemoryMappedFile.hpp
+    io/MemoryMappedInput.hpp
     io/ReadScanner.cpp
     io/OutputSAM.cpp
     io/MPSC.hpp

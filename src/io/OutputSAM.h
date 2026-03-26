@@ -4,7 +4,7 @@
 #include <string>
 #include <filesystem>
 #include "Parameters.h"
-#include "MemoryMappedFile.hpp"
+#include "MemoryMappedInput.hpp"
 #include "MPSC.hpp"
 
 
@@ -33,7 +33,7 @@ namespace RefactorProcessing {
         {
             outputFilePath_ = (std::filesystem::path(P.outPutDir) / "outAligned.out.sam").string();
             std::cout << "Output file path: " << outputFilePath_ << std::endl;
-            outputFD_ = open(outputFilePath_.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            outputFD_ = open(outputFilePath_.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
             if (outputFD_ == -1) {
                 throw std::runtime_error("Failed get file handle for " + outputFilePath_);
             }

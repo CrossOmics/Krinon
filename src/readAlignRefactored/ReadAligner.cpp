@@ -23,9 +23,7 @@ namespace RefactorProcessing{
 
     size_t ReadAlignerSingleThread::getRead(std::string_view block, size_t offset) {
         // The offset may be outside of the current buffer, then we are done with it!
-        if (offset >= block.length()) {
-            return 0;
-        }
+        if (offset >= readScanner_->READ_BUFFER_SIZE) return 0;
         // Otherwise, get the pointer to the current and parse it
         return readScanner_->parseRead(r, block.data() + offset, nullptr);
     }
@@ -41,12 +39,8 @@ namespace RefactorProcessing{
         while (true) {
             // Claim a read buffer properly aligned to start from a valid read
             std::string_view readBuffer = readScanner_->loadFromFastq();
-            // There may be nothing to read anymore (i.e. the current read partition
-            // is finished, there is nothing left in the mapped region). In this case,
-            // we are done and can break out.
-            if (readBuffer.length() == 0) {
-                break;
-            }
+            if (readBuffer.data() == nullptr) continue;
+            if (readBuffer.length() == 0 && readScanner_->isEOF(readBuffer.data())) break;
             // Read until the buffer is exhausted ...
             size_t offset = 0, bytes = 0;
             while (true) {
@@ -116,7 +110,6 @@ namespace RefactorProcessing{
                     gIndex_, outputSAM_, timeReport_
                 )
             );
-            std::cout << "Init on aligner thread " << i << std::endl;
             aligners_[i]->init(&readScanner_, P, i, threadNum);
         }
     }
@@ -126,10 +119,6 @@ namespace RefactorProcessing{
     }
 
     void ReadAligner::alignReads() {
-        /**
-         * TODO: (ARVIN) This is only for one partition. Add logic to move on
-         *       to the next partition, if there is any!
-         */
         // Reset number of active threads
         reset();
         // Add aligner threads

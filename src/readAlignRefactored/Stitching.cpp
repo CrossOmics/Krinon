@@ -59,7 +59,6 @@ namespace RefactorProcessing {
         windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
         transcripts_.resize(transcriptStoredMax_);
         size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_ - 1)) + 2;
-        std::cout << winBinNum << std::endl;
         winBinMap_[0].resize(winBinNum, -1);
         winBinMap_[1].resize(winBinNum, -1);
         size_t maxStitchRecordNum = maxSeedPerWindows_ * maxSeedPerWindows_;

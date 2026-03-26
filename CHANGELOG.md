@@ -86,3 +86,11 @@ and replaced a bunch of string operations with `append`)
 - Some extra logic needs to be added for handling partitioned reads.
 - After reading the code, I have concluded that we are not at all prepared to handle paired-end reads. The current (and very likely previous) implementations can easily
 output garbage if used as is. Thus I think will be pretty difficult to solve, so I am postponing that.
+
+# [Arvin Ghavidel - 3/25/2026]
+
+## Changes
+- The output SAM file creation now has `O_TRUNC` added. If it exists already, it will be truncated.
+- The `MemoryMappedFile` class has been renamed to `MemeoryMappedInput` and all write-capable functionalities for it have been removed (we don't need them).
+- I have ditched the partitioning strategy. We'll just map the entire file and let the kernel handle paging by itself. I have added `madvise` to the new
+implementation to hint for sequential access.
