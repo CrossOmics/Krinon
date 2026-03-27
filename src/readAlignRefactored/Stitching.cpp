@@ -192,7 +192,7 @@ namespace RefactorProcessing {
                 int sjIndex = loc / sjdbLength_;
                 int64_t donorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex] + startInSj;
                 int64_t donorLength = sjdbOverhang_ - startInSj;
-                int64_t acceptorStart = genomeIndex_.genome_.sjDonorStart_[sjIndex];
+                int64_t acceptorStart = genomeIndex_.genome_.sjAcceptorStart_[sjIndex];
                 int64_t acceptorLength = a.length - donorLength;
                 wa.genomeStart = donorStart;
                 wa.readStart = readPos;
@@ -225,6 +225,7 @@ namespace RefactorProcessing {
             wa.direction = 1 - a.direction;
             wa.isAnchor = a.isAnchor;
             wa.iFragment = a.iFragment;
+            wa.isj = -1;
         } else {
             //forward strand
             wa.genomeStart = loc;
@@ -233,6 +234,7 @@ namespace RefactorProcessing {
             wa.direction = a.direction;
             wa.isAnchor = a.isAnchor;
             wa.iFragment = a.iFragment;
+            wa.isj = -1;
         }
 
         return true;
@@ -643,7 +645,7 @@ namespace RefactorProcessing {
         if (genomeGap == 0 && readGap == 0) {
             // perfect match, no gap
             record.type = StitchRecord::PERFECT_MATCH;
-            record.score = (a2.length - a2Length) * MATCH_SCORE_;
+            record.score = (a2Length - a2.length) * MATCH_SCORE_;
             record.formerExonLengthShift = -a1.length;
             record.latterExonLengthShift = a1.length + a2Length - a2.length;
             record.matches = a2Length;
