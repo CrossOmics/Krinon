@@ -7,115 +7,81 @@
 namespace RefactorProcessing{
     void ReadAlignerSingleThread::setParam(const Parameters &P) {
         isPairedEnd_ = P.isPaired;
-        readBufferSize_ = P.readBufferSize;
-        outputBufferSize_ = P.outputBufferSize;
-        r1Length_ = 0;
-        r2Length_ = 0;
-        std::cout << "\t[isPaired]: " << P.isPaired << "\n" <<
-            "\t[isPaired]: " << P.isPaired << "\n" <<
-            "\t[readBufferSize]: " << P.readBufferSize << "\n" <<
-            "\t[outputBufferSize]: " << P.outputBufferSize << std::endl;
     }
 
-    void ReadAlignerSingleThread::init(ReadScanner *rs, OutputSAM *o,TimeReport* t,const Parameters &P,int threadId,int threadNum) {
+    void ReadAlignerSingleThread::init(ReadScanner *rs, const Parameters &P, int threadId, int threadNum) {
         setParam(P);
         readScanner_ = rs;
-        outputSAM_ = o;
-        timeReport_ = t;
         threadId_ = threadId;
         threadNum_ = threadNum;
-
-        readBuffer1_ = new char[readBufferSize_ + 20000];
-        read1pos_ = 0;
-        if (isPairedEnd_){
-            readBuffer2_ = new char[readBufferSize_ + 20000];
-            read2pos_ = 0;
-        }
-        outputBuffer_ = new char[outputBufferSize_ + 100000];
-        outputPos_ = 0;
-        r1Length_ = 0;
-        r2Length_ = 0;
-
         seedMapping_.setParam(P);
         stitchingManagement_.setParam(P);
-        std::cout << "Calling init on management" << std::endl;
         stitchingManagement_.init();
-
         readScanner_ = rs;
-        outputSAM_ = o;
-
         seedMapping_.aligns_.reserve(P.maxSeedPerRead);
     }
 
-    int ReadAlignerSingleThread::getRead() {
-        size_t r1Length = 0, r2Length = 0;
-        if (read1pos_ == r1Length_) {
-            readScanner_->loadFromFastq(readBuffer1_, readBuffer2_, readBufferSize_, r1Length, r2Length);
-            read1pos_ = 0;
-            r1Length_ = r1Length;
-            if (isPairedEnd_) {
-                read2pos_ = 0;
-                r2Length_ = r2Length;
-            }
-            if (r1Length == 0) {
-                return -1; // no more reads
-            }
-        }
-
-        readScanner_->parseRead(r, readBuffer1_ + read1pos_, isPairedEnd_ ? readBuffer2_ + read2pos_ : nullptr, r1Length, r2Length);
-        read1pos_ += r1Length;
-        if (isPairedEnd_) read2pos_ += r2Length;
-        return 0;
+    size_t ReadAlignerSingleThread::getRead(std::string_view block, size_t offset) {
+        // The offset may be outside of the current buffer, then we are done with it!
+        if (offset >= readScanner_->READ_BUFFER_SIZE) return 0;
+        // Otherwise, get the pointer to the current and parse it
+        return readScanner_->parseRead(r, block.data() + offset, nullptr);
     }
 
-    void ReadAlignerSingleThread::process() {
+    void ReadAlignerSingleThread::process(std::atomic<int>& activeThreads) {
         int readCount = 0;
         if (threadId_ == 0) {
-            timeReport_->init(threadNum_,"TimeReport.out");
+            timeReport_->init(threadNum_, "TimeReport.out");
         }
-        while (getRead() == 0) {
 
-            seedMapping_.aligns_.clear();
-            seedMapping_.process(&r);
-            stitchingManagement_.process( &r);
-            // std::cout << "Read: " << readCount << " | Transcript Length: " << stitchingManagement_.resultTranscriptLength_ << std::endl;
-            // output SAM records
-            std::memcpy(outputBuffer_ + outputPos_, stitchingManagement_.resultTranscriptBuffer_, stitchingManagement_.resultTranscriptLength_);
-            outputPos_ += stitchingManagement_.resultTranscriptLength_;
-            if (outputPos_ > outputBufferSize_) {
-                outputSAM_->outputSAM(outputBuffer_, outputPos_);
-                outputPos_ = 0;
-            }
-            ++readCount;
-            if (readCount % 1000 == 0) {
-                if (threadId_ == 0) {
-                    timeReport_->tryActivateReport(threadNum_);
+        // Get our first output buffer instance
+        BufferedReads* bufferedReads = outputSAM_->getOutputBuffer();
+        while (true) {
+            // Claim a read buffer properly aligned to start from a valid read
+            std::string_view readBuffer = readScanner_->loadFromFastq();
+            if (readBuffer.data() == nullptr) continue;
+            if (readBuffer.length() == 0 && readScanner_->isEOF(readBuffer.data())) break;
+            // Read until the buffer is exhausted ...
+            size_t offset = 0, bytes = 0;
+            while (true) {
+                bytes = getRead(readBuffer, offset);
+                offset += bytes;
+                if (bytes == 0) {
+                    // The current read buffer has been exhausted, break out and
+                    // get a new one!
+                    break;
                 }
-                timeReport_->tryReportProgress(threadId_,readCount);
+                // Map and write directly to the buffer (we _own_ this, and since it is
+                // a string, we don't have to manually resize it).
+                seedMapping_.aligns_.clear();
+                seedMapping_.process(&r);
+                stitchingManagement_.process(&r, bufferedReads->data);
+                // If the output buffer is filled, pass the result to the writer
+                if (bufferedReads->data.length() >= MAX_OUTPUT_BUFFER_SIZE) {
+                    // Submit all buffered reads, then attempt to grab a new buffer to write again
+                    outputSAM_->submitBufferedReads(bufferedReads);
+                    bufferedReads = outputSAM_->getOutputBuffer();
+                }
+                ++readCount;
+                if (readCount % 1000 == 0) {
+                    if (threadId_ == 0) {
+                        timeReport_->tryActivateReport(threadNum_);
+                    }
+                    timeReport_->tryReportProgress(threadId_,readCount);
+                }
             }
-            // usleep(1000000);
         }
-        if (outputPos_ > 0) {
-            outputSAM_->outputSAM(outputBuffer_, outputPos_);
-            outputPos_ = 0;
+        // In case there are leftovers to write, just submit!
+        if (!bufferedReads->data.empty()) {
+            outputSAM_->submitBufferedReads(bufferedReads);
         }
+        // Announce that you are done with this partition.
+        activeThreads.fetch_sub(1, std::memory_order_release);
     }
 
     void ReadAligner::setParam(const Parameters &P) {
         threads = P.workingThreads;
         readScanner_.setParam(P);
-        /**
-         * TODO: Please correct me if I am wrong, but when I discussed with Chandra, we were
-         *       under the impression that the output `SAM` file is roughly of the same size
-         *       as the input read (i.e. at most a few times bigger).
-         *       Knowing this upper bound can help make a completely lock free multi-threaded
-         *       program which can achieve much higher throughput with many threads, and only
-         *       needs to truncate/resize the output at most once.
-         *       But I see that the initial file size here seems to be hardcoded and then expanded
-         *       later when needed. Do we actually have to be this careful?
-         *       We only need a rough upper bound for the above to work.
-         */
-        outputSAM_.setParam(P, 1e9);
         gIndex_.setParam(P);
         gIndexDir_ = (std::filesystem::path(P.genomeGenerateFileStoreDir) / "GeIndex").string();
     }
@@ -134,30 +100,39 @@ namespace RefactorProcessing{
         setParam(P);
         std::cout << "Loading genome file(s) at " << gIndexDir_ << std::endl;
         loadGenome();
-        std::cout << "Current genome length: " << this->gIndex_.genome_.genomeLength_ << std::endl;
-        std::cout << "Genome loading done" << std::endl;
+        std::cout << "Mapping read file ... " << std::endl;
+        outputSAM_ = std::make_shared<OutputSAM>(P);
+        timeReport_ = std::make_shared<TimeReport>();
         aligners_.reserve(threadNum);
         for (int i = 0; i < threadNum; ++i) {
-            aligners_.emplace_back(new ReadAlignerSingleThread(gIndex_));
-            std::cout << "Init on aligner thread " << i << std::endl;
-            aligners_[i]->init(&readScanner_, &outputSAM_, &timeReport_, P, i, threadNum);
+            aligners_.emplace_back(
+                new ReadAlignerSingleThread(
+                    gIndex_, outputSAM_, timeReport_
+                )
+            );
+            aligners_[i]->init(&readScanner_, P, i, threadNum);
         }
     }
 
-    void ReadAligner::alignReads() {
+    void ReadAligner::reset() {
+        activeThreads_.store(threads, std::memory_order_release);
+    }
 
-        // add threads
+    void ReadAligner::alignReads() {
+        // Reset number of active threads
+        reset();
+        // Add aligner threads
         std::vector<std::thread> t;
         for (int i = 0; i < threads; ++i) {
-            t.emplace_back([this, i] { aligners_[i]->process(); });
+            t.emplace_back([this, i] { aligners_[i]->process(activeThreads_);});
         }
-
+        // Assume the role of the consumer thread
+        outputSAM_->consumerThread(activeThreads_);
+        // Join for cleanup ...
         for (auto &thread: t) {
             if (thread.joinable()) {
                 thread.join();
             }
         }
-
-        outputSAM_.close();
     }
 }

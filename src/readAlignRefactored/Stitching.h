@@ -211,12 +211,7 @@ namespace RefactorProcessing {
 
         int numGoodTranscripts_{0};
 
-        char* resultTranscriptBuffer_;
-
-        size_t resultTranscriptLength_;
-
         Stitching(const GenomeIndex& g, std::vector<Align>& a):genomeIndex_(g),alignments_(a){};
-        ~Stitching();
 
         // parameters
         void setParam(const Parameters &P);
@@ -226,7 +221,7 @@ namespace RefactorProcessing {
 
         inline bool convertAlignToPositiveStrandWindowAlign(const Align& a, size_t ind,WindowAlign &wa1, WindowAlign &wa2) const;
 
-        void process(Read* read);
+        void process(Read* read, std::string& outputBuffer);
 
         void identifyAnchors();
 
@@ -251,7 +246,7 @@ namespace RefactorProcessing {
 
         void assignAlignment();
 
-        void convertToResult();
+        void convertToResult(std::string& outputBuffer);
 
         // clear data
         void clear();
