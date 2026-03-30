@@ -155,7 +155,7 @@ namespace RefactorProcessing{
     size_t ReadScanner::parseRead(Read &r, const char* readBuffer1, const char* readBuffer2) {
         const char* ptr1 = readBuffer1;
         int len = std::strcspn(ptr1, " ");
-        if (len == 0) return 0; // invalid read ("\0\0\0\0"), is it expected to happen?
+        if (len == 0) return 0; // invalid read ("\000\000\000\000"), is it expected to happen?
         r.name = std::string(ptr1 , len ); // skip '@'
 
         ptr1 += len + 1;
