@@ -155,7 +155,7 @@ namespace RefactorProcessing{
     size_t ReadScanner::parseRead(Read &r, const char* readBuffer1, const char* readBuffer2) {
         const char* ptr1 = readBuffer1;
         int len = std::strcspn(ptr1, " ");
-        r.name = std::string(ptr1, len);
+        r.name = std::string(ptr1+1, len);
         ptr1 += len + 1;
         len = std::strcspn(ptr1, "\n");
         ptr1 += len + 1;

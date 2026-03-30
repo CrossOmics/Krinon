@@ -11,7 +11,8 @@ DATA_DIR="/home/aghavidel/data"
 # Krinon genome index directory
 GENOME_INDEX="${DATA_DIR}/human_genome/refactored_index"
 # Path to the FASTQ file we want to parse
-READ_FASTQ="${DATA_DIR}/SRR16101430/SRR16101430_1.fastq"
+# READ_FASTQ="${DATA_DIR}/SRR16101430/SRR16101430_1.fastq"
+READ_FASTQ="${DATA_DIR}/tiny.fastq"
 # Read output directory
 READ_OUTPUT_DIR="/home/aghavidel/read_outputs/"
 
