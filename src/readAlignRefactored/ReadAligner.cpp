@@ -24,6 +24,8 @@ namespace RefactorProcessing{
     size_t ReadAlignerSingleThread::getRead(std::string_view block, size_t offset) {
         // The offset may be outside of the current buffer, then we are done with it!
         if (offset >= readScanner_->READ_BUFFER_SIZE) return 0;
+        // The offset may be outside of the current block length ?
+        if (offset >= block.length()) return 0;
         // Otherwise, get the pointer to the current and parse it
         return readScanner_->parseRead(r, block.data() + offset, nullptr);
     }
