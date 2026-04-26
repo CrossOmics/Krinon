@@ -66,7 +66,7 @@ namespace RefactorProcessing {
 
 
 
-        inline bool insertAlignResults(std::vector<Align> &results, const Align &a) const;
+        inline bool insertAlignResults(std::vector<Align> &results, const Align &a, const int readLength) const;
 
 
         inline size_t sjFindInsertPosition(const std::string_view& s) const{
@@ -118,7 +118,10 @@ namespace RefactorProcessing {
         // search
         void find(const Split pattern, std::vector<Align> &results) const;
 
+        // when nowMappedLength is 0, try to find fullmatch and accelerate search
         Align findMMP(const std::string_view &seq) const;
+
+        void findShortMatch(const Align matchedAlign, const std::vector<int>& endLengths, std::vector<Align> &results) const;
 
         Align findMMP_GetRange(const std::string_view &seq, int64_t rangeLeft, int64_t rangeRight,
                                size_t matchedLength) const;

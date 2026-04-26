@@ -4,7 +4,7 @@
 
 
 namespace RefactorProcessing {
-    inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a) const {
+    inline bool GenomeIndex::insertAlignResults(std::vector<Align> &results, const Align &a,const int readLength) const {
 
 
         if (a.rep > 10000) return false; // too many reps, ignore
@@ -16,13 +16,14 @@ namespace RefactorProcessing {
 
 
         int posToInsert = -1;
-        size_t readStart = a.readPos;
+        size_t readStart = a.direction == 0 ?a.readPos:readLength - a.readPos - a.length;
         size_t length = a.length;
 
         // find the position to insert
         for (size_t i = 0; i < results.size(); ++i) {
-            if (results[i].readPos < readStart) continue;
-            if (results[i].readPos == readStart) {
+            size_t resultReadStart = results[i].direction == 0 ?results[i].readPos:readLength - results[i].readPos - results[i].length;
+            if (resultReadStart < readStart) continue;
+            if (resultReadStart == readStart) {
                 if (results[i].length < length) continue;
                 if (results[i].length == length) {
                     if (results[i].direction != a.direction) continue;
@@ -50,6 +51,33 @@ namespace RefactorProcessing {
         return true;
     }
 
+    void GenomeIndex::findShortMatch(const Align matchedAlign, const std::vector<int>& endLengths, std::vector<Align> &results) const{
+        int num = endLengths.size();
+        results.resize(num);
+        size_t leftSAIndex = matchedAlign.leftSAIndex;
+        size_t rightSAIndex = matchedAlign.rightSAIndex;
+        for (int i = 0; i < num; ++i) {
+            if (matchedAlign.length < (size_t) endLengths[i]) {
+                results[i].length = 0;
+                results[i].rep = 0;
+                continue;
+            }
+            results[i].readPos = matchedAlign.readPos;
+            results[i].length = endLengths[i];
+            results[i].direction = matchedAlign.direction;
+            results[i].iFragment = matchedAlign.iFragment;
+            while (leftSAIndex > 0 && longestCommonPrefix_[leftSAIndex] >= endLengths[i]) {
+                --leftSAIndex;
+            }
+            while (rightSAIndex < suffixArray_.length_ - 1 && longestCommonPrefix_[rightSAIndex + 1] >= endLengths[i]) {
+                ++rightSAIndex;
+            }
+            results[i].leftSAIndex = leftSAIndex;
+            results[i].rightSAIndex = rightSAIndex;
+            results[i].rep = rightSAIndex - leftSAIndex + 1;
+        }
+    }
+
     void GenomeIndex::find(const Split pattern, std::vector<Align> &results) const {
         // align the read to the genome
         // std::<vector> results must be reserved
@@ -60,13 +88,16 @@ namespace RefactorProcessing {
         int64_t iStart = 1 + (splitLength / 50); // todo replace 50 by parameter
         int64_t lStart = splitLength / iStart;
 
-        bool fullMatch = false;
         std::string_view splits[2] = {pattern.forward, pattern.reverse};
+        std::vector<Align> tempResults[2];
+        int64_t fullMatchRemainLength[2];
+        fullMatchRemainLength[0] = fullMatchRemainLength[1] = 0;
         for (int dir = 0; dir <= 1; ++dir) {
             std::string_view split = splits[dir];
             int64_t splitStart = dir == 0 ? pattern.splitStart : (pattern.readLength - pattern.splitStart - pattern.length);
             for (int i = 0; i < iStart; ++i) {
                 int64_t nowMappedLength = i * lStart;
+                if (fullMatchRemainLength[dir] >= splitLength - nowMappedLength) break;
 
                 // search MMP aligns
 
@@ -84,15 +115,37 @@ namespace RefactorProcessing {
                     matchedAlign.readPos =  splitStart + matchedLength;
                     matchedAlign.direction = dir;
                     matchedAlign.iFragment = pattern.iFragment;
+                    if (i == 0 && matchedLength == 0){
+                        //first search from the beginning
+                        std::vector<int> endLengths(iStart);
+                        for (int k = 0; k < iStart; ++k) {
+                            endLengths[k] = splitLength - k * lStart;
+                        }
+                        findShortMatch(matchedAlign,endLengths,tempResults[dir]);
+                    }
                     length = matchedAlign.length;
                     if (length == 0) break;
+                    insertAlignResults(results, matchedAlign,pattern.readLength);
+                    if (length == splitLength - matchedLength){
+                        fullMatchRemainLength[dir] = length;
+                        break;
+                    }
                     matchedLength += length;
-                    insertAlignResults(results, matchedAlign);
-                    if (length == splitLength) fullMatch = true;
+
+
                 } while (length > 0);
-                if (fullMatch) break;
+
             }
-            if (fullMatch) break;
+        }
+
+        for (int dir = 0; dir <= 1; ++dir) {
+            int64_t i = (splitLength-fullMatchRemainLength[dir]) / lStart;
+            for (int64_t j = i + 1;j < iStart; ++j){
+                /*if (tempResults[1-dir][j].rep == 0){
+                    std::cout<<"?";
+                }*/
+                insertAlignResults(results,tempResults[1-dir][j],pattern.readLength);
+            }
         }
     }
 
@@ -393,14 +446,7 @@ namespace RefactorProcessing {
             else greater = pattern[l] < genome_.sequence_[pos + l];
         }
 
-        /*for (l = matchedLength; l < pattern.length(); ++l) {
-            if (pattern[l] != genome_.sequence_[pos + l]) {
-                if (charToIndex(genome_.sequence_[pos + l]) < 0)
-                    greater = true;// 'N' and '#' are regarded as the largest
-                else greater = pattern[l] < genome_.sequence_[pos + l];
-                break;
-            }
-        }*/
+
         return {l, greater};
     }
 }

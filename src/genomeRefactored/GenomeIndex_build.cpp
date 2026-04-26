@@ -197,7 +197,9 @@ namespace RefactorProcessing {
 
     void GenomeIndex::buildExtendedIndexHashSingle(int64_t h) {
         int64_t nowLeftSAIndex = patternMerMap_.get(h,patternMerMap_.INDEX_LEFT_SA_INDEX);
-        int64_t num = patternMerMap_.get(h, patternMerMap_.INDEX_UPPER_RANGE);
+        int64_t upperRange = patternMerMap_.get(h, patternMerMap_.INDEX_UPPER_RANGE);
+        if (upperRange == patternMerMap_.EMPTY_UPPER_RANGE) upperRange = -1;
+        int64_t num = upperRange + 1;
         int indNum = extendHashTableByte_ / 4;
         size_t genomeLength = genome_.sequence_.length();
 

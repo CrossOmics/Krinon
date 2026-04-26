@@ -16,6 +16,7 @@ namespace RefactorProcessing {
         int64_t genomeStart{0};
         int64_t length{0};
         bool isAnchor{false};
+        bool isAcceptor{false};
         int direction{0};
         int isj{-1};// annotation index
         int iFragment{0};
@@ -44,6 +45,9 @@ namespace RefactorProcessing {
         int mismatches{0}; //ADDITIONAL mismatches. same as above
         int64_t formerExonLengthShift{0}; // length extension of the former exon
         int64_t latterExonLengthShift{0}; // length extension of the latter exon
+        int shiftLeft{0};
+        int shiftRight{0};
+        int64_t isj{-1}; 
 
     };
 
@@ -90,8 +94,12 @@ namespace RefactorProcessing {
         int numExon{0};
         int extendedLengthForward{0}; //extension 5' end
         int extendedLengthBackward{0}; // extension 3' end
+
+        int lastExonLength{0}; // to handle short exon
         // todo maybe no need
         int StartAlignId{0}; // to calc max extension
+
+        int sjStrand{-1}; // handle sj strand consistency, -1 for unknown, 0 for +, 1 for -
 
         void init(const Window& win,int i,int matchScore);
 

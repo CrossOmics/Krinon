@@ -85,15 +85,15 @@ namespace RefactorProcessing {
         numGoodTranscripts_ = 0;
     }
 
-    void Stitching::process(RefactorProcessing::Read *read, std::string& outputBuffer) {
+    void Stitching::process(RefactorProcessing::Read *read, std::string &outputBuffer) {
         if (alignments_.size() == 0) {
             return;
         }
         maxTranscriptScore_ = 0;
         numGoodTranscripts_ = 0;
         read_ = read;
-        outFilterScoreMin_ = int(double(read_->length) * outFilterScoreMinOverLRead_);
-        outFilterMatchMin_ = int(double(read_->length) * outFilterMatchMinOverLRead_);
+        outFilterScoreMin_ = int(double(read_->length - 1) * outFilterScoreMinOverLRead_);
+        outFilterMatchMin_ = int(double(read_->length - 1) * outFilterMatchMinOverLRead_);
 
         identifyAnchors();
         createWindows();
@@ -132,7 +132,7 @@ namespace RefactorProcessing {
         clear();
     }
 
-    void Stitching::convertToResult(std::string& outputBuffer) {
+    void Stitching::convertToResult(std::string &outputBuffer) {
         for (int i = 0; i < numGoodTranscripts_; ++i) {
             transcripts_[i].convertToSAM(*read_, isPaired_, numGoodTranscripts_, outputBuffer);
         }
@@ -193,6 +193,7 @@ namespace RefactorProcessing {
                 wa2.isAnchor = a.isAnchor;
                 wa2.iFragment = a.iFragment;
                 wa2.isj = sjIndex;
+                wa2.isAcceptor = true;
                 return true;
             } else {
                 // not crossing sjdb
@@ -380,6 +381,7 @@ namespace RefactorProcessing {
         // when window is full, check if it needs to be replaced
         if (a.length <= minLengthWhenFull && !a.isAnchor) return false; // ignore too short no anchor alignment
 
+        //bool overlapInserted = false;
         //detect overlap
         for (int i = 0; i < numAligns; ++i) {
             if (aligns[i].isj == a.isj && a.genomeStart + aligns[i].readStart == aligns[i].genomeStart + a.readStart \
@@ -562,6 +564,8 @@ namespace RefactorProcessing {
         const int64_t a1ReadEnd = a1.readStart + a1.length - 1;
         const int64_t a1GenomeEnd = a1.genomeStart + a1.length - 1;
 
+        record.isj = -1;
+
         if (a1.iFragment != a2.iFragment) {
             // stitching between paired reads
             // handle mates extension while DP
@@ -593,6 +597,9 @@ namespace RefactorProcessing {
             record.matches = a2.length;
             record.mismatches = 0;
             record.spliceJunctionType = genomeIndex_.genome_.sjDataBase_[a1.isj].motif;
+            record.shiftLeft = genomeIndex_.genome_.sjDataBase_[a1.isj].shiftLeft;
+            record.shiftRight = genomeIndex_.genome_.sjDataBase_[a1.isj].shiftRight;
+            record.isj = a1.isj;
             //record.stitchingType = {genomeIndex_.genome->sjdb[a2.isj].motif, a2.genomeStart - (a1GenomeEnd + 1), true};
             return;
         }
@@ -717,7 +724,33 @@ namespace RefactorProcessing {
                 junctionReadPosTemp++;
             } while (junctionReadPosTemp < a2ReadEnd - a1ReadEnd);
 
-            // todo maintain repeat length for junctions
+            //repeat length for junctions is needed to be considered for short exon filtering
+            int64_t jjL = 0, jjR = 0;
+            while (a1GenomeEnd + junctionReadPos >= jjL &&
+                   genomeSeq[a1GenomeEnd - jjL + junctionReadPos] == genomeSeq[lastIntronBase - jjL + junctionReadPos] &&
+                   genomeSeq[a1GenomeEnd - jjL + junctionReadPos] != 'N' &&
+                   genomeSeq[a1GenomeEnd - jjL + junctionReadPos] != '#' &&
+                   jjL <= 255) {//go back
+                jjL++;
+            }
+
+            while ((size_t) a1GenomeEnd + jjR + junctionReadPos + 1 < genomeSeq.length() &&
+                   genomeSeq[a1GenomeEnd + jjR + junctionReadPos + 1] ==
+                   genomeSeq[lastIntronBase + jjR + junctionReadPos + 1] &&
+                   genomeSeq[a1GenomeEnd + jjR + junctionReadPos + 1] != 'N' &&
+                   genomeSeq[a1GenomeEnd + jjR + junctionReadPos + 1] != '#' &&
+                   jjR <= 255) {//go forward
+                jjR++;
+            }
+
+            if (junctionType <= 0){
+                // non canonical or deletion
+                junctionReadPos-=jjL;
+                // todo notice the filtering
+                jjR+=jjL;
+                jjL=0;
+            }
+
 
 
             // score donor and acceptor
@@ -772,6 +805,8 @@ namespace RefactorProcessing {
             record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos) - a2.length;
             record.matches = nMatch + a2Length;
             record.mismatches = nMismatch;
+            record.shiftLeft = jjL;
+            record.shiftRight = jjR;
 
 
         } else if (readGap > genomeGap) {
@@ -846,7 +881,7 @@ namespace RefactorProcessing {
         int extendScore = 0;
         if (extendDir == 0) {
             // extend forward
-            int64_t extendLength = std::min(a.readStart,a.genomeStart);
+            int64_t extendLength = std::min(a.readStart, a.genomeStart);
             int l = 1;
             for (l = 1; l <= extendLength; ++l) {
                 size_t genomePos = a.genomeStart - l;
@@ -966,9 +1001,11 @@ namespace RefactorProcessing {
         score = win.aligns[i].length * matchScore;
         newAlignId = i;
         matches = win.aligns[i].length;
+        lastExonLength = win.aligns[i].length;
         mismatches = 0;
         numExon = 1;
         StartAlignId = i;
+        sjStrand = -1;
     }
 
     Transcript
@@ -1101,6 +1138,24 @@ namespace RefactorProcessing {
                         if (formerT.score < 0) continue;
                         const StitchRecord &sr = stitchRecords_[calcStitchRecPos(i + j, i + dist)];
                         if (sr.type == StitchRecord::CANNOT_STITCH) continue;
+                        // filter short exon
+                        // handle sjstrand consistency
+                        if (sr.type == StitchRecord::SPLICE_JUNCTION) {
+                            if (sr.isj == -1) {
+                               //todo replace the hardcoded 5 with a parameter
+                                if ( formerT.lastExonLength + sr.formerExonLengthShift - sr.shiftLeft < 5) continue; 
+                                if ( window.aligns[i + dist].length + sr.latterExonLengthShift - sr.shiftRight < 5) continue;
+                            }else {
+                                //sjdb
+                                if (formerT.lastExonLength +sr.formerExonLengthShift < 3) continue;
+                                if ( window.aligns[i + dist].length + sr.latterExonLengthShift < 3) continue;
+                            }
+
+                            if (formerT.sjStrand != -1){
+                                if (formerT.sjStrand != 2 - sr.spliceJunctionType % 2) continue;
+                            }
+                            
+                        }
 
                         if (formerT.mismatches + sr.mismatches > maxMismatch_) continue;
                         if (formerT.numExon >= maxExons_) continue;
@@ -1115,6 +1170,12 @@ namespace RefactorProcessing {
                             if (sr.type == StitchRecord::PERFECT_MATCH || sr.type == StitchRecord::SAME_GAP)
                                 t.numExon = formerT.numExon;
                             else t.numExon = formerT.numExon + 1;
+                            if (sr.type == StitchRecord::SPLICE_JUNCTION) {
+                                t.sjStrand = 2 - sr.spliceJunctionType % 2;
+                            }else {
+                                t.sjStrand = formerT.sjStrand;
+                            }
+                            t.lastExonLength = window.aligns[i + dist].length + sr.latterExonLengthShift;
                         }
                     }
                 }
@@ -1178,7 +1239,7 @@ namespace RefactorProcessing {
                 //finalize the transcript
                 //add length penalty
                 t.score += int(ceil(log2(double(window.aligns[i + j].genomeStart + window.aligns[i + j].length -
-                                                window.aligns[i].genomeStart)) * -0.25 - 0.5));
+                                                window.aligns[i].genomeStart + t.extendedLengthForward + t.extendedLengthBackward)) * -0.25 - 0.5));
 
                 if (t.score > localBestScore)
                     localBestScore = t.score;
