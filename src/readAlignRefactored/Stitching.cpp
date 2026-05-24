@@ -57,6 +57,7 @@ namespace RefactorProcessing {
         // allocate memory for data structures based on parameters
         windows_.reserve(maxWindows_);
         windowAlignments_.resize(maxWindows_ * maxSeedPerWindows_);
+        windowSjdbIds_.resize(maxWindows_ * maxSeedPerWindows_/2);
         transcripts_.resize(transcriptStoredMax_);
         size_t winBinNum = (genomeIndex_.genome_.genomeLength_ >> (winBinSizeLog_ - 1)) + 2;
         winBinMap_[0].resize(winBinNum, -1);
@@ -369,12 +370,26 @@ namespace RefactorProcessing {
              * fixed, I forgot to limit the number of windows created in createWindowFromAnchor
              */
             win.aligns = windowAlignments_.data() + i * maxSeedPerWindows_;
+            win.sjdbIds = windowSjdbIds_.data() + i * maxSeedPerWindows_/2;
             memset((void *) win.aligns, 0, sizeof(WindowAlign) * maxSeedPerWindows_);
             win.numAligns = 0;
             win.numAnchors = 0;
+            win.numSjdbIds = 0;
             win.numFirstFragAligns = 0;
             win.numSecondFragAligns = 0;
+            
         }
+    }
+
+    inline int Stitching::sjdbCheck(const Window &win,const int64_t start, const int64_t end) const{
+        // check if the del is in the GTF file, and return the sjdb index, otherwise return -1
+        for (int i = 0; i < win.numSjdbIds; ++i) {
+            int sjdbId = win.sjdbIds[i];
+            if ((size_t) start == genomeIndex_.genome_.sjDataBase_[sjdbId].start && (size_t) end == genomeIndex_.genome_.sjDataBase_[sjdbId].end) {
+                return sjdbId;
+            }
+        }
+        return -1;
     }
 
     bool Window::assignAlignment(const WindowAlign &a, int maxSeedPerWindows) {
@@ -427,6 +442,21 @@ namespace RefactorProcessing {
                 return false;
             }
         }
+
+        if (a.isj != -1) {
+            bool sjdbExists = false;
+            for (int i  = 0; i < numSjdbIds; ++i) {
+                if (sjdbIds[i] == a.isj){
+                    sjdbExists = true;
+                    break;
+                }
+            }
+            if (!sjdbExists) {
+                ++numSjdbIds;
+                sjdbIds[numSjdbIds - 1] = a.isj;
+            }
+        }
+
 
         if (a.isAnchor) ++numAnchors; // anchor must be added to the window
 
@@ -784,10 +814,29 @@ namespace RefactorProcessing {
             }
 
             // score the gap
-            // todo ? check if the junction is annotated
-            /*if (genomeIndex_.genome_->sjdbNum > 0) {
-
-            }*/
+            // check if the junction is annotated
+            if (window.numSjdbIds > 0) {
+                int isj = sjdbCheck(window,a1GenomeEnd+junctionReadPos +1, lastIntronBase + junctionReadPos);
+                if (isj != -1) {
+                    // annotated junction
+                    if (genomeIndex_.genome_.sjDataBase_[isj].motif == 0){
+                        junctionReadPos += genomeIndex_.genome_.sjDataBase_[isj].shiftLeft;
+                        jjL = genomeIndex_.genome_.sjDataBase_[isj].shiftLeft;
+                        jjR = genomeIndex_.genome_.sjDataBase_[isj].shiftRight;
+                    }
+                    record.isj = isj;
+                    record.type = StitchRecord::SPLICE_JUNCTION;
+                    record.matches = nMatch + a2Length;
+                    record.mismatches = nMismatch;
+                    record.score += SCORE_ANNOTATED_SJ_;
+                    record.formerExonLengthShift = junctionReadPos;
+                    record.latterExonLengthShift = (a2ReadEnd - a1ReadEnd - junctionReadPos) - a2.length;
+                    record.spliceJunctionType = genomeIndex_.genome_.sjDataBase_[isj].motif;
+                    record.shiftLeft = jjL;
+                    record.shiftRight = jjR;
+                    return;
+                }
+            }
 
             if (Del > MIN_INTRON_LENGTH_) {
                 record.score += GAP_OPEN_PENALTY_ + junctionPenalty;

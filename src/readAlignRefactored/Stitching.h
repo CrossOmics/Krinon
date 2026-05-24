@@ -77,6 +77,8 @@ namespace RefactorProcessing {
         int startBin{0};
         int endBin{0};
         int minLengthWhenFull{0};
+        int numSjdbIds{0};
+        int *sjdbIds;
         int numFirstFragAligns{0};
         int numSecondFragAligns{0};
         bool assignAlignment(const WindowAlign& a,int maxSeedPerWindows);
@@ -195,6 +197,8 @@ namespace RefactorProcessing {
 
         std::vector<Window> windows_;
 
+        std::vector<int> windowSjdbIds_;
+
         std::vector<int> winBinMap_[2];
 
         std::vector<StitchRecord> stitchRecords_;// stitching records between window-alignments
@@ -260,6 +264,8 @@ namespace RefactorProcessing {
         void clear();
 
         void refreshWinBinMap();
+
+        inline int sjdbCheck(const Window& win,const int64_t start,const int64_t end) const;
 
 
 
