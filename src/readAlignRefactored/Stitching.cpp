@@ -124,6 +124,7 @@ namespace RefactorProcessing {
 
         if (trueNumGoodTranscripts > outFilterMultimapMax_) {
             trueNumGoodTranscripts = 0;
+            clear();
             return;
         }
         numGoodTranscripts_ = trueNumGoodTranscripts;
