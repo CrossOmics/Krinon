@@ -9,6 +9,8 @@ namespace RefactorProcessing {
 
         if (a.rep > 10000) return false; // too many reps, ignore
 
+        if (a.rep == 0) return false;// null align in findShortMatch
+
         if (results.size() >= (size_t) maxAlignNum) {
             rna::WarningRecord().reportWarning("Exceeding max alignments per read, some alignments are ignored");
             return false;
