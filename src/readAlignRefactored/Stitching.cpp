@@ -161,7 +161,7 @@ namespace RefactorProcessing {
         //sjdb check
         wa2.direction = 2;// 2 means dummy
         size_t loc = genomeIndex_.suffixArray_[ind];
-        if (loc > genomeIndex_.genome_.sjdbStart_ && genomeIndex_.genome_.sjdbNum_ > 0) {
+        if (loc >= genomeIndex_.genome_.sjdbStart_ && genomeIndex_.genome_.sjdbNum_ > 0) {
             // maybe a cross-sjdb alignment
             loc -= genomeIndex_.genome_.sjdbStart_;
             int dir = a.direction;
