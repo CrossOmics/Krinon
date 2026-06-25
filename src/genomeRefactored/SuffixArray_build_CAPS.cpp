@@ -13,7 +13,7 @@ namespace RefactorProcessing {
 
 
     inline uint64_t lcp_avx(const char* a, const char* b, uint64_t n) {
-        uint64_t i = 0;
+        /*uint64_t i = 0;
         while (i + 32 <= n) {
             __m256i va = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a + i));
             __m256i vb = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(b + i));
@@ -25,7 +25,8 @@ namespace RefactorProcessing {
             i += 32;
         }
         while (i < n && a[i] == b[i]) ++i;
-        return i;
+        return i;*/
+        return 0;
     }
 
 

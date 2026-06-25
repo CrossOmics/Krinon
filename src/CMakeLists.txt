@@ -37,10 +37,6 @@ add_executable(RNAAlignRefactored main.cpp
 )
 
 set_property(TARGET RNAAlignRefactored PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(RNAAlignRefactored PRIVATE -march=native -Wall -Wextra -Wpedantic -Wno-unused-variable -Wno-unused-parameter -Werror)
-elseif (MSVC)
-    target_compile_options(RNAAlignRefactored PRIVATE /arch:AVX2 -Wall -Wextra -Wpedantic -Wno-unused-variable -Wno-unused-parameter -Werror)
-endif ()
+
 
 target_link_libraries(RNAAlignRefactored PUBLIC OpenMP::OpenMP_CXX)
